@@ -1,20 +1,7 @@
-# Python / Virtual Environment
-.venv/
-venv/
+﻿backend/.env
+backend/.venv
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-*.sqlite3
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# IDE & OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+node_modules/
+.expo/
+.next/
