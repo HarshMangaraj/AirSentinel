@@ -20,8 +20,10 @@ export interface ThemeColors {
   danger: string;
   glass: string;
   glassBorder: string;
+  glassHighlight: string;
+  cardGlow: string;
   gradient: [string, string, string];
-  blurTint: 'light' | 'dark';
+  blurTint: 'light' | 'dark' | 'systemThinMaterial' | 'systemChromeMaterial';
   aqi: {
     good: string;
     moderate: string;
@@ -32,30 +34,34 @@ export interface ThemeColors {
 
 export const lightColors: ThemeColors = {
   mode: 'light',
-  paper: '#F4F6F2',
-  ink: '#1A2420',
-  signal: '#2F6E5C',
-  signalDark: '#1E4B3E',
-  muted: '#6B7570',
-  danger: '#B23A3A',
-  glass: 'rgba(255,255,255,0.55)',
-  glassBorder: 'rgba(255,255,255,0.7)',
-  gradient: ['#DCEDE6', '#EAF3EE', '#F4F6F2'],
+  paper: '#F8FAFC',
+  ink: '#0F172A',
+  signal: '#059669',
+  signalDark: '#047857',
+  muted: '#64748B',
+  danger: '#DC2626',
+  glass: 'rgba(255, 255, 255, 0.65)',
+  glassBorder: 'rgba(255, 255, 255, 0.85)',
+  glassHighlight: 'rgba(255, 255, 255, 0.95)',
+  cardGlow: 'rgba(5, 150, 105, 0.08)',
+  gradient: ['#E6F4EF', '#F0F9F5', '#F8FAFC'],
   blurTint: 'light',
-  aqi: { good: '#4C9A6A', moderate: '#D9A441', unhealthy: '#D9722F', hazardous: '#B23A3A' },
+  aqi: { good: '#10B981', moderate: '#F59E0B', unhealthy: '#F97316', hazardous: '#EF4444' },
 };
 
 export const darkColors: ThemeColors = {
   mode: 'dark',
-  paper: '#0E1512',
-  ink: '#EAF2EE',
-  signal: '#4FBF9C',
-  signalDark: '#3A9C7D',
-  muted: '#8FA098',
-  danger: '#E06B6B',
-  glass: 'rgba(255,255,255,0.08)',
-  glassBorder: 'rgba(255,255,255,0.14)',
-  gradient: ['#0B1210', '#101A16', '#0E1512'],
+  paper: '#060C0A',
+  ink: '#F3F4F6',
+  signal: '#10B981',
+  signalDark: '#059669',
+  muted: '#9CA3AF',
+  danger: '#EF4444',
+  glass: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  glassHighlight: 'rgba(255, 255, 255, 0.22)',
+  cardGlow: 'rgba(16, 185, 129, 0.15)',
+  gradient: ['#060C0A', '#0D1814', '#14241E'],
   blurTint: 'dark',
-  aqi: { good: '#5FCB94', moderate: '#E5B85A', unhealthy: '#E5895A', hazardous: '#D65B5B' },
+  aqi: { good: '#10B981', moderate: '#F59E0B', unhealthy: '#F97316', hazardous: '#EF4444' },
 };
