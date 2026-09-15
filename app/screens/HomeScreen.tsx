@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { GlassSkeleton } from '../components/GlassSkeleton';
 import { LeafletMap } from '../components/LeafletMap';
@@ -23,11 +24,11 @@ function aqiColorFor(colors: ReturnType<typeof useTheme>['colors'], aqi: number 
 }
 
 function aqiAdvisory(aqi: number | null): string {
-  if (aqi === null) return 'AQI status unavailable at this location';
-  if (aqi <= 50) return 'Ideal air quality for outdoor activities & exercise.';
-  if (aqi <= 100) return 'Acceptable air quality; sensitive individuals exercise care.';
-  if (aqi <= 200) return 'Unhealthy air quality. Consider reducing prolonged outdoor exposure.';
-  return 'Hazardous air quality! Limit outdoor activities and wear protection.';
+  if (aqi === null) return 'Air quality data is currently unavailable for this area.';
+  if (aqi <= 50) return 'Air quality is satisfactory. Ideal conditions for outdoor activities.';
+  if (aqi <= 100) return 'Air quality is acceptable. Sensitive individuals should monitor outdoor time.';
+  if (aqi <= 200) return 'Air quality is degraded. Consider limiting prolonged outdoor exposure.';
+  return 'Air quality is hazardous. Avoid outdoor exercise and wear protective masks.';
 }
 
 export function HomeScreen() {
@@ -46,20 +47,19 @@ export function HomeScreen() {
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(18)).current;
+  const slideAnim = useRef(new Animated.Value(12)).current;
 
-  // Pulse animation for live dot indicator
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.45,
-          duration: 1000,
+          toValue: 1.35,
+          duration: 1100,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: 1100,
           useNativeDriver: true,
         }),
       ])
@@ -84,7 +84,7 @@ export function HomeScreen() {
     setAqi(null);
     setAqiError(false);
     fadeAnim.setValue(0);
-    slideAnim.setValue(18);
+    slideAnim.setValue(12);
 
     getCurrentAqi(point.lat, point.lon)
       .then((data) => {
@@ -93,13 +93,13 @@ export function HomeScreen() {
           Animated.parallel([
             Animated.timing(fadeAnim, {
               toValue: 1,
-              duration: 450,
+              duration: 350,
               useNativeDriver: true,
             }),
             Animated.spring(slideAnim, {
               toValue: 0,
-              friction: 8,
-              tension: 40,
+              friction: 9,
+              tension: 50,
               useNativeDriver: true,
             }),
           ]).start();
@@ -155,32 +155,33 @@ export function HomeScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <View style={styles.brandRow}>
-                <Text style={[typeScale.hero, { color: colors.ink }]}>AirSentinel</Text>
-                <View style={[styles.liveBadge, { backgroundColor: activeColor + '22', borderColor: activeColor + '44' }]}>
-                  <Animated.View style={[styles.liveBadgeDot, { backgroundColor: activeColor, transform: [{ scale: pulseAnim }] }]} />
-                  <Text style={[styles.liveBadgeText, { color: activeColor }]}>LIVE</Text>
+              <View style={styles.titleRow}>
+                <Text style={[styles.brandTitle, { color: colors.ink }]}>AirSentinel</Text>
+                <View style={[styles.statusTag, { borderColor: activeColor + '30', backgroundColor: activeColor + '12' }]}>
+                  <Animated.View style={[styles.statusDot, { backgroundColor: activeColor, transform: [{ scale: pulseAnim }] }]} />
+                  <Text style={[styles.statusTagText, { color: activeColor }]}>LIVE</Text>
                 </View>
               </View>
-              <Text style={[typeScale.small, { color: colors.muted }]}>Real-time air intelligence</Text>
+              <Text style={[styles.subTitle, { color: colors.muted }]}>Environmental Intelligence Platform</Text>
             </View>
 
             <View style={styles.headerActions}>
-              <GlassCard style={styles.iconBtn} intensity={30} onPress={toggleTheme}>
-                <Text style={{ fontSize: 16 }}>{isDark ? '☀️' : '🌙'}</Text>
+              <GlassCard style={styles.iconBtn} intensity={25} onPress={toggleTheme}>
+                <Feather name={isDark ? 'sun' : 'moon'} size={16} color={colors.ink} />
               </GlassCard>
-              <GlassCard style={styles.signOutCard} intensity={30} onPress={signOut}>
-                <Text style={[typeScale.small, { color: colors.ink, fontFamily: 'Inter_600SemiBold' }]}>Sign out</Text>
+              <GlassCard style={styles.signOutBtn} intensity={25} onPress={signOut}>
+                <Feather name="log-out" size={14} color={colors.muted} style={{ marginRight: 5 }} />
+                <Text style={[styles.signOutText, { color: colors.ink }]}>Exit</Text>
               </GlassCard>
             </View>
           </View>
 
           {/* Search Box */}
-          <GlassCard style={styles.searchCard} intensity={40}>
-            <Text style={{ fontSize: 16, marginRight: 6 }}>🔍</Text>
+          <GlassCard style={styles.searchCard} intensity={35}>
+            <Feather name="search" size={16} color={colors.muted} style={styles.searchIcon} />
             <TextInput
               style={[styles.searchInput, { color: colors.ink }]}
-              placeholder="Search city or location in India..."
+              placeholder="Search location in India..."
               placeholderTextColor={colors.muted}
               value={searchText}
               onChangeText={setSearchText}
@@ -190,26 +191,26 @@ export function HomeScreen() {
             <Pressable
               onPress={handleSearch}
               style={({ pressed }) => [
-                styles.searchGo,
-                { backgroundColor: colors.signal, opacity: pressed ? 0.85 : 1 },
+                styles.searchSubmit,
+                { backgroundColor: colors.signal, opacity: pressed ? 0.8 : 1 },
               ]}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
-                {searching ? '…' : '→'}
-              </Text>
+              <Feather name={searching ? 'loader' : 'arrow-right'} size={16} color="#FFFFFF" />
             </Pressable>
           </GlassCard>
 
-          {/* Location Button */}
+          {/* Location Action Bar */}
           <GlassCard
-            style={styles.locateCard}
-            intensity={30}
-            glowColor={locating ? colors.signal : undefined}
+            style={styles.locateBtn}
+            intensity={25}
             onPress={useMyLocation}
           >
-            <Text style={[typeScale.label, { color: colors.signal, fontFamily: 'Inter_600SemiBold' }]}>
-              {locating ? '🧭 Determining location...' : '📍 Use My Precise Location'}
-            </Text>
+            <View style={styles.locateContent}>
+              <Feather name="navigation" size={14} color={colors.signal} style={{ marginRight: 8 }} />
+              <Text style={[styles.locateText, { color: colors.signal }]}>
+                {locating ? 'Acquiring device location...' : 'Use Current Coordinates'}
+              </Text>
+            </View>
           </GlassCard>
 
           {/* City Chips Carousel */}
@@ -229,10 +230,10 @@ export function HomeScreen() {
                   >
                     <Text
                       style={[
-                        typeScale.label,
+                        styles.chipText,
                         {
                           color: active ? '#FFFFFF' : colors.ink,
-                          fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
+                          fontWeight: active ? '600' : '400',
                         },
                       ]}
                     >
@@ -244,95 +245,82 @@ export function HomeScreen() {
             })}
           </ScrollView>
 
-          {/* Bento Grid Content */}
+          {/* Bento Grid Telemetry Layout */}
           {loadingCities || loadingAqi ? (
             <GlassSkeleton />
           ) : aqiError || !aqi ? (
-            <GlassCard style={styles.errorCard} intensity={40}>
-              <Text style={{ fontSize: 36, textAlign: 'center', marginBottom: 8 }}>⚠️</Text>
-              <Text style={[typeScale.body, { color: colors.ink, textAlign: 'center', fontFamily: 'Inter_600SemiBold' }]}>
-                No live data available
-              </Text>
-              <Text style={[typeScale.small, { color: colors.muted, textAlign: 'center', marginTop: 4 }]}>
-                Could not fetch air quality data for {point?.label}.
+            <GlassCard style={styles.errorContainer} intensity={30}>
+              <Feather name="alert-circle" size={24} color={colors.muted} style={{ marginBottom: 8 }} />
+              <Text style={[styles.errorTitle, { color: colors.ink }]}>Telemetry Unavailable</Text>
+              <Text style={[styles.errorSub, { color: colors.muted }]}>
+                No air quality sensor feeds could be retrieved for {point?.label}.
               </Text>
             </GlassCard>
           ) : (
             <Animated.View
               style={[
-                styles.bento,
+                styles.bentoContainer,
                 {
                   opacity: fadeAnim,
                   transform: [{ translateY: slideAnim }],
                 },
               ]}
             >
-              {/* Hero Bento Card */}
-              <GlassCard
-                style={styles.heroCard}
-                intensity={55}
-                glowColor={activeColor + '40'}
-              >
-                <View style={styles.heroTopRow}>
-                  <View style={styles.locationPill}>
-                    <Text style={{ fontSize: 13, marginRight: 4 }}>📍</Text>
-                    <Text style={[typeScale.label, { color: colors.muted, fontFamily: 'Inter_600SemiBold' }]}>
-                      {point?.label}
-                    </Text>
+              {/* Primary Bento Hero Card */}
+              <GlassCard style={styles.heroCard} intensity={45}>
+                <View style={styles.heroHeader}>
+                  <View style={styles.stationBadge}>
+                    <Feather name="map-pin" size={13} color={colors.muted} style={{ marginRight: 5 }} />
+                    <Text style={[styles.stationName, { color: colors.muted }]}>{point?.label}</Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: activeColor + '1E', borderColor: activeColor + '55' }]}>
-                    <Animated.View
-                      style={[
-                        styles.dotPulse,
-                        { backgroundColor: activeColor, transform: [{ scale: pulseAnim }] },
-                      ]}
-                    />
-                    <Text style={[styles.statusBadgeText, { color: activeColor }]}>
-                      {aqiLabel(aqi.aqi)}
-                    </Text>
+                  <View style={[styles.categoryPill, { backgroundColor: activeColor + '18', borderColor: activeColor + '40' }]}>
+                    <View style={[styles.categoryDot, { backgroundColor: activeColor }]} />
+                    <Text style={[styles.categoryText, { color: activeColor }]}>{aqiLabel(aqi.aqi)}</Text>
                   </View>
                 </View>
 
-                <View style={styles.heroNumberContainer}>
-                  <Text style={[styles.heroNumber, { color: activeColor }]}>{aqi.aqi ?? 'N/A'}</Text>
-                  <View style={styles.unitContainer}>
-                    <Text style={[styles.unitText, { color: colors.muted }]}>AQI</Text>
-                    <Text style={[styles.unitSub, { color: activeColor }]}>INDEX</Text>
+                <View style={styles.metricsRow}>
+                  <Text style={[styles.heroIndexNumber, { color: activeColor }]}>
+                    {aqi.aqi ?? '--'}
+                  </Text>
+                  <View style={styles.indexUnitColumn}>
+                    <Text style={[styles.unitLabel, { color: colors.muted }]}>AQI</Text>
+                    <Text style={[styles.unitScale, { color: colors.ink }]}>US EPA Standard</Text>
                   </View>
                 </View>
 
-                <View style={[styles.advisoryBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-                  <Text style={{ fontSize: 14, marginRight: 6 }}>🫁</Text>
-                  <Text style={[typeScale.small, { color: colors.ink, flex: 1 }]}>
+                <View style={[styles.advisoryContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)' }]}>
+                  <Feather name="info" size={14} color={colors.signal} style={{ marginRight: 8, marginTop: 2 }} />
+                  <Text style={[styles.advisoryText, { color: colors.ink }]}>
                     {aqiAdvisory(aqi.aqi)}
                   </Text>
                 </View>
               </GlassCard>
 
-              {/* Source Stations Grid */}
-              <View style={styles.sourceGridHeader}>
-                <Text style={[typeScale.label, { color: colors.muted, fontFamily: 'Inter_600SemiBold' }]}>
-                  📡 Sensor Station Telemetry ({aqi.sources.length})
+              {/* Sensor Feeds Section Header */}
+              <View style={styles.sectionHeader}>
+                <Feather name="radio" size={13} color={colors.muted} style={{ marginRight: 6 }} />
+                <Text style={[styles.sectionTitle, { color: colors.muted }]}>
+                  STATION TELEMETRY ({aqi.sources.length} SOURCES)
                 </Text>
               </View>
 
+              {/* Sensor Grid */}
               <View style={styles.sourceGrid}>
                 {aqi.sources.map((s) => {
                   const sColor = s.aqi !== null ? aqiColorFor(colors, s.aqi) : colors.muted;
                   return (
-                    <GlassCard key={s.source} style={styles.sourceCard} intensity={35}>
-                      <View style={styles.sourceHeader}>
-                        <Text style={[typeScale.small, { color: colors.muted, fontFamily: 'Inter_600SemiBold' }]}>
-                          {s.source}
-                        </Text>
-                        <View style={[styles.miniDot, { backgroundColor: sColor }]} />
+                    <GlassCard key={s.source} style={styles.sourceCard} intensity={30}>
+                      <View style={styles.sourceTop}>
+                        <Text style={[styles.sourceName, { color: colors.muted }]}>{s.source}</Text>
+                        <View style={[styles.miniIndicator, { backgroundColor: sColor }]} />
                       </View>
                       <Text style={[styles.sourceValue, { color: sColor }]}>
-                        {s.aqi !== null ? s.aqi : 'N/A'}
+                        {s.aqi !== null ? s.aqi : '--'}
                       </Text>
                       {s.distance_km !== null && (
                         <Text style={[styles.sourceDist, { color: colors.muted }]}>
-                          ~{Math.round(s.distance_km)}km away
+                          {Math.round(s.distance_km)} km distance
                         </Text>
                       )}
                     </GlassCard>
@@ -340,28 +328,26 @@ export function HomeScreen() {
                 })}
               </View>
 
-              {/* Station Distance Banner */}
+              {/* Distance Info Banner */}
               {aqi.distance_km !== null && aqi.distance_km > 5 && (
-                <GlassCard style={styles.distBanner} intensity={25}>
-                  <Text style={{ fontSize: 14, marginRight: 6 }}>📡</Text>
-                  <Text style={[typeScale.small, { color: colors.muted, flex: 1, textAlign: 'center' }]}>
-                    Nearest ground station ~{Math.round(aqi.distance_km)}km away · composite average from {aqi.source_count} sensor feeds
+                <View style={styles.distanceMetaRow}>
+                  <Feather name="activity" size={12} color={colors.muted} style={{ marginRight: 6 }} />
+                  <Text style={[styles.distanceMetaText, { color: colors.muted }]}>
+                    Nearest ground station is ~{Math.round(aqi.distance_km)} km away (averaged across {aqi.source_count} providers).
                   </Text>
-                </GlassCard>
+                </View>
               )}
 
-              {/* Interactive Station Map Bento Card */}
+              {/* Interactive Station Map */}
               <GlassCard style={styles.mapCard} intensity={20}>
-                <View style={styles.mapHeaderBar}>
+                <View style={styles.mapHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 14, marginRight: 6 }}>🗺️</Text>
-                    <Text style={[typeScale.label, { color: colors.ink, fontFamily: 'Inter_600SemiBold' }]}>
-                      Interactive Location Map
-                    </Text>
+                    <Feather name="map" size={14} color={colors.ink} style={{ marginRight: 6 }} />
+                    <Text style={[styles.mapTitle, { color: colors.ink }]}>Station Coordinates Map</Text>
                   </View>
-                  <Text style={[typeScale.small, { color: colors.muted }]}>Tap map to select</Text>
+                  <Text style={[styles.mapSub, { color: colors.muted }]}>Tap anywhere to inspect</Text>
                 </View>
-                <View style={styles.mapFrame}>
+                <View style={styles.mapCanvas}>
                   <LeafletMap
                     lat={point!.lat}
                     lon={point!.lon}
@@ -383,123 +369,144 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveBadge: {
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandTitle: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  subTitle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  statusTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: radius.sm,
     borderWidth: 1,
   },
-  liveBadgeDot: { width: 6, height: 6, borderRadius: 3 },
-  liveBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  statusDot: { width: 5, height: 5, borderRadius: 2.5 },
+  statusTagText: { fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
 
-  headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  headerActions: { flexDirection: 'row', gap: spacing.xs + 2, alignItems: 'center' },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 0,
     borderRadius: radius.md,
   },
-  signOutCard: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.md },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+  },
+  signOutText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
 
   searchCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginBottom: spacing.sm,
-    borderRadius: radius.lg,
-  },
-  searchInput: { flex: 1, ...typeScale.body, paddingHorizontal: spacing.xs, height: 44 },
-  searchGo: {
-    width: 36,
-    height: 36,
+    paddingVertical: 2,
+    marginBottom: spacing.xs + 4,
     borderRadius: radius.md,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, ...typeScale.body, fontSize: 14, height: 40 },
+  searchSubmit: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  locateCard: {
-    alignItems: 'center',
-    paddingVertical: 12,
+  locateBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
     borderRadius: radius.md,
+    alignItems: 'center',
   },
+  locateContent: { flexDirection: 'row', alignItems: 'center' },
+  locateText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 
   chipRow: { marginBottom: spacing.md },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.lg,
-    borderWidth: 1.2,
-    marginRight: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginRight: spacing.xs + 4,
   },
+  chipText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
 
-  errorCard: { padding: spacing.xl, alignItems: 'center', marginTop: spacing.md },
-  bento: { gap: spacing.md },
+  errorContainer: { padding: spacing.xl, alignItems: 'center', marginTop: spacing.sm },
+  errorTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+  errorSub: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 4 },
 
-  heroCard: { padding: spacing.lg, gap: spacing.md, borderRadius: radius.xl },
-  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  locationPill: { flexDirection: 'row', alignItems: 'center' },
-  statusBadge: {
+  bentoContainer: { gap: spacing.md },
+
+  heroCard: { padding: spacing.lg, borderRadius: radius.lg, gap: spacing.md },
+  heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stationBadge: { flexDirection: 'row', alignItems: 'center' },
+  stationName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+
+  categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.lg,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
-  dotPulse: { width: 8, height: 8, borderRadius: 4 },
-  statusBadgeText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  categoryDot: { width: 6, height: 6, borderRadius: 3 },
+  categoryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
 
-  heroNumberContainer: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginVertical: 4 },
-  heroNumber: { fontSize: 68, lineHeight: 72, fontFamily: 'Inter_700Bold' },
-  unitContainer: { justifyContent: 'flex-end', paddingBottom: 8 },
-  unitText: { fontSize: 14, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
-  unitSub: { fontSize: 10, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.5 },
+  metricsRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginVertical: 2 },
+  heroIndexNumber: { fontSize: 64, lineHeight: 68, fontFamily: 'Inter_700Bold', letterSpacing: -1 },
+  indexUnitColumn: { justifyContent: 'flex-end', paddingBottom: 6 },
+  unitLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
+  unitScale: { fontSize: 11, fontFamily: 'Inter_400Regular' },
 
-  advisoryBox: {
+  advisoryContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: spacing.sm + 2,
     borderRadius: radius.md,
-    marginTop: spacing.xs,
   },
+  advisoryText: { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 18 },
 
-  sourceGridHeader: { marginTop: 4, marginBottom: -4 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: -4 },
+  sectionTitle: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
+
   sourceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   sourceCard: { width: '48.5%', padding: spacing.md, gap: 4 },
-  sourceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  miniDot: { width: 6, height: 6, borderRadius: 3 },
-  sourceValue: { fontSize: 32, fontFamily: 'Inter_700Bold' },
+  sourceTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sourceName: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  miniIndicator: { width: 6, height: 6, borderRadius: 3 },
+  sourceValue: { fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   sourceDist: { fontSize: 11, fontFamily: 'Inter_400Regular' },
 
-  distBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
+  distanceMetaRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
+  distanceMetaText: { fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 },
 
-  mapCard: { padding: 0, overflow: 'hidden', height: 300 },
-  mapHeaderBar: {
+  mapCard: { padding: 0, overflow: 'hidden', height: 290, borderRadius: radius.lg },
+  mapHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
-  mapFrame: { flex: 1, overflow: 'hidden', borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
+  mapTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  mapSub: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  mapCanvas: { flex: 1, overflow: 'hidden' },
 });

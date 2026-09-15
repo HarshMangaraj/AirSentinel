@@ -12,13 +12,13 @@ export function GlassSkeleton() {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(opacityAnim, {
-          toValue: 0.8,
-          duration: 800,
+          toValue: 0.7,
+          duration: 750,
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 0.3,
-          duration: 800,
+          duration: 750,
           useNativeDriver: true,
         }),
       ])
@@ -32,19 +32,19 @@ export function GlassSkeleton() {
   return (
     <View style={styles.container}>
       {/* Hero Skeleton Card */}
-      <GlassCard style={styles.heroSkeleton} intensity={50}>
-        <Animated.View style={[styles.titleLine, { backgroundColor: blockBg, opacity: opacityAnim }]} />
-        <Animated.View style={[styles.heroNum, { backgroundColor: blockBg, opacity: opacityAnim }]} />
-        <View style={styles.heroFooter}>
-          <Animated.View style={[styles.dot, { backgroundColor: colors.signal, opacity: opacityAnim }]} />
+      <GlassCard style={styles.heroSkeleton} intensity={40}>
+        <View style={styles.heroHeader}>
+          <Animated.View style={[styles.titleLine, { backgroundColor: blockBg, opacity: opacityAnim }]} />
           <Animated.View style={[styles.badgeLine, { backgroundColor: blockBg, opacity: opacityAnim }]} />
         </View>
+        <Animated.View style={[styles.heroNum, { backgroundColor: blockBg, opacity: opacityAnim }]} />
+        <Animated.View style={[styles.advisoryLine, { backgroundColor: blockBg, opacity: opacityAnim }]} />
       </GlassCard>
 
       {/* 2x2 Source Grid Skeleton */}
       <View style={styles.sourceGrid}>
         {[1, 2, 3, 4].map((i) => (
-          <GlassCard key={i} style={styles.sourceSkeleton} intensity={35}>
+          <GlassCard key={i} style={styles.sourceSkeleton} intensity={30}>
             <Animated.View style={[styles.sourceLabel, { backgroundColor: blockBg, opacity: opacityAnim }]} />
             <Animated.View style={[styles.sourceValue, { backgroundColor: blockBg, opacity: opacityAnim }]} />
           </GlassCard>
@@ -60,19 +60,19 @@ export function GlassSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.md, marginTop: spacing.sm },
-  heroSkeleton: { paddingVertical: spacing.xl, gap: spacing.md, alignItems: 'flex-start' },
-  titleLine: { width: 120, height: 16, borderRadius: radius.sm },
-  heroNum: { width: 140, height: 60, borderRadius: radius.md },
-  heroFooter: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  badgeLine: { width: 90, height: 16, borderRadius: radius.sm },
+  container: { gap: spacing.md, marginTop: spacing.xs },
+  heroSkeleton: { padding: spacing.lg, gap: spacing.md },
+  heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  titleLine: { width: 110, height: 14, borderRadius: radius.sm },
+  badgeLine: { width: 80, height: 22, borderRadius: radius.md },
+  heroNum: { width: 130, height: 56, borderRadius: radius.md, marginVertical: 4 },
+  advisoryLine: { width: '90%', height: 14, borderRadius: radius.sm },
 
   sourceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  sourceSkeleton: { width: '47.5%', padding: spacing.md, gap: spacing.sm, height: 85 },
-  sourceLabel: { width: 60, height: 12, borderRadius: radius.sm },
-  sourceValue: { width: 50, height: 28, borderRadius: radius.sm },
+  sourceSkeleton: { width: '48.5%', padding: spacing.md, gap: spacing.sm, height: 80 },
+  sourceLabel: { width: 55, height: 11, borderRadius: radius.sm },
+  sourceValue: { width: 45, height: 26, borderRadius: radius.sm },
 
-  mapSkeleton: { height: 260, padding: 0, justifyContent: 'center', alignItems: 'center' },
+  mapSkeleton: { height: 260, padding: 0 },
   mapPlaceholder: { width: '100%', height: '100%', borderRadius: radius.lg },
 });
