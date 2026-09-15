@@ -31,21 +31,27 @@ export type City = {
   lon: number;
 };
 
+export type AqiSource = {
+  source: string;
+  aqi: number;
+  station: string;
+  distance_km: number;
+  updated_at: string | null;
+};
+
 export type AqiReading = {
   aqi: number;
   station: string;
-  lat: number;
-  lon: number;
-  updated_at: string | null;
-  dominant_pollutant: string | null;
   distance_km: number;
+  updated_at: string | null;
+  sources: AqiSource[];
+  source_count: number;
 };
 
 export function getCities(): Promise<City[]> {
   return authedFetch('/cities');
 }
 
-export function getCurrentAqi(lat: number, lon: number, place?: string): Promise<AqiReading> {
-  const placeParam = place ? `&place=${encodeURIComponent(place)}` : '';
-  return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}${placeParam}`);
+export function getCurrentAqi(lat: number, lon: number): Promise<AqiReading> {
+  return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}`);
 }

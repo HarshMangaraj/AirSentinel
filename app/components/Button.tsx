@@ -1,5 +1,6 @@
 import { Pressable, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, type, spacing, radius } from '../theme/tokens';
+import { useTheme } from '../context/ThemeContext';
+import { type as typeScale, radius } from '../theme/tokens';
 
 type Props = {
   label: string;
@@ -9,21 +10,24 @@ type Props = {
 };
 
 export function Button({ label, onPress, loading, variant = 'primary' }: Props) {
+  const { colors } = useTheme();
   const isPrimary = variant === 'primary';
+
   return (
     <Pressable
       onPress={onPress}
       disabled={loading}
       style={({ pressed }) => [
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
+        { backgroundColor: isPrimary ? colors.signal : 'transparent' },
+        !isPrimary && { borderWidth: 1, borderColor: colors.glassBorder },
         pressed && { opacity: 0.85 },
       ]}
     >
       {loading ? (
         <ActivityIndicator color={isPrimary ? colors.paper : colors.signal} />
       ) : (
-        <Text style={[styles.label, isPrimary ? styles.labelPrimary : styles.labelSecondary]}>
+        <Text style={[typeScale.label, { color: isPrimary ? colors.paper : colors.ink }]}>
           {label}
         </Text>
       )}
@@ -38,9 +42,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primary: { backgroundColor: colors.signal },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
-  label: { ...type.label },
-  labelPrimary: { color: colors.paper },
-  labelSecondary: { color: colors.ink },
 });

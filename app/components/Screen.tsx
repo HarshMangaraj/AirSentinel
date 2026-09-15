@@ -1,10 +1,12 @@
 import { SafeAreaView, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing } from '../theme/tokens';
+import { useTheme } from '../context/ThemeContext';
+import { spacing } from '../theme/tokens';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <SafeAreaView style={[styles.base, style]}>{children}</SafeAreaView>;
+  const { colors } = useTheme();
+  return <SafeAreaView style={[styles.base, { backgroundColor: colors.paper }, style]}>{children}</SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  base: { flex: 1, backgroundColor: colors.paper, padding: spacing.lg },
+  base: { flex: 1, padding: spacing.lg },
 });

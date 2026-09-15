@@ -2,15 +2,16 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { SignInScreen } from '../screens/SignInScreen';
 import { VerifyOtpScreen } from '../screens/VerifyOtpScreen';
 import { HomeScreen } from '../screens/HomeScreen';
-import { colors } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
 
 export function RootNavigator() {
   const { session, loading } = useAuth();
+  const { colors } = useTheme();
 
   if (loading) {
     return (

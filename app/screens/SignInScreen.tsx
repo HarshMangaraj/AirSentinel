@@ -4,9 +4,11 @@ import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { colors, type, spacing } from '../theme/tokens';
+import { useTheme } from '../context/ThemeContext';
+import { type as typeScale, spacing } from '../theme/tokens';
 
 export function SignInScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,8 +31,8 @@ export function SignInScreen({ navigation }: any) {
 
   return (
     <Screen style={styles.container}>
-      <Text style={type.hero}>AirSentinel</Text>
-      <Text style={[type.body, styles.subtitle]}>
+      <Text style={[typeScale.hero, { color: colors.ink }]}>AirSentinel</Text>
+      <Text style={[typeScale.body, { color: colors.muted, marginTop: spacing.sm, marginBottom: spacing.xl }]}>
         Enter your email and we'll send you a one-time code to sign in.
       </Text>
       <TextField
@@ -48,5 +50,4 @@ export function SignInScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { justifyContent: 'center' },
-  subtitle: { color: colors.muted, marginTop: spacing.sm, marginBottom: spacing.xl },
 });
