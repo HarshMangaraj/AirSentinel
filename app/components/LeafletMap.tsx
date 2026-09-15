@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { WebView } from 'react-native-webview';
 import { StyleSheet } from 'react-native';
 
@@ -7,9 +8,10 @@ type Props = {
   aqi: number;
   aqiColor: string;
   station: string;
+  onMapPress?: (lat: number, lon: number) => void;
 };
 
-export function LeafletMap({ lat, lon, aqi, aqiColor, station }: Props) {
+export function LeafletMap({ lat, lon, aqi, aqiColor, station, onMapPress }: Props) {
   const html = `
     <!DOCTYPE html>
     <html>
@@ -38,6 +40,13 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station }: Props) {
         }).addTo(map);
 
         marker.bindPopup('<b>${station}</b><br/>AQI: ${aqi}').openPopup();
+
+        map.on('click', function(e) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            lat: e.latlng.lat,
+            lon: e.latlng.lng
+          }));
+        });
       </script>
     </body>
     </html>
@@ -49,6 +58,13 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station }: Props) {
       style={styles.map}
       javaScriptEnabled
       domStorageEnabled
+      onMessage={(event) => {
+        if (!onMapPress) return;
+        try {
+          const { lat, lon } = JSON.parse(event.nativeEvent.data);
+          onMapPress(lat, lon);
+        } catch {}
+      }}
     />
   );
 }

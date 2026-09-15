@@ -7,7 +7,7 @@ async function authedFetch(path: string) {
   const token = data.session?.access_token;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+ const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
