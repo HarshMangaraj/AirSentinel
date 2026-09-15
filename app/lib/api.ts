@@ -33,17 +33,15 @@ export type City = {
 
 export type AqiSource = {
   source: string;
-  aqi: number;
-  station: string;
-  distance_km: number;
-  updated_at: string | null;
+  aqi: number | null;
+  station: string | null;
+  distance_km: number | null;
 };
 
 export type AqiReading = {
-  aqi: number;
+  aqi: number | null;
   station: string;
-  distance_km: number;
-  updated_at: string | null;
+  distance_km: number | null;
   sources: AqiSource[];
   source_count: number;
 };

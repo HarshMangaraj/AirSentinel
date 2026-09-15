@@ -13,7 +13,8 @@ import { spacing, type as typeScale, radius } from '../theme/tokens';
 
 type Point = { lat: number; lon: number; label: string };
 
-function aqiColorFor(colors: ReturnType<typeof useTheme>['colors'], aqi: number) {
+function aqiColorFor(colors: ReturnType<typeof useTheme>['colors'], aqi: number | null) {
+  if (aqi === null) return colors.muted;
   if (aqi <= 50) return colors.aqi.good;
   if (aqi <= 100) return colors.aqi.moderate;
   if (aqi <= 200) return colors.aqi.unhealthy;
@@ -160,7 +161,7 @@ export function HomeScreen() {
             <View style={styles.bento}>
               <GlassCard style={styles.heroCard} intensity={50}>
                 <Text style={[typeScale.label, { color: colors.muted }]}>{point?.label}</Text>
-                <Text style={[styles.heroNumber, { color: aqiColorFor(colors, aqi.aqi) }]}>{aqi.aqi}</Text>
+                <Text style={[styles.heroNumber, { color: aqiColorFor(colors, aqi.aqi) }]}>{aqi.aqi ?? 'N/A'}</Text>
                 <View style={styles.heroFooter}>
                   <View style={[styles.dot, { backgroundColor: aqiColorFor(colors, aqi.aqi) }]} />
                   <Text style={[typeScale.label, { color: colors.ink }]}>{aqiLabel(aqi.aqi)}</Text>
@@ -171,12 +172,17 @@ export function HomeScreen() {
                 {aqi.sources.map((s) => (
                   <GlassCard key={s.source} style={styles.sourceCard} intensity={35}>
                     <Text style={[typeScale.small, { color: colors.muted }]}>{s.source}</Text>
-                    <Text style={[styles.sourceValue, { color: aqiColorFor(colors, s.aqi) }]}>{s.aqi}</Text>
+                    <Text style={[
+                      styles.sourceValue,
+                      { color: s.aqi !== null ? aqiColorFor(colors, s.aqi) : colors.muted },
+                    ]}>
+                      {s.aqi !== null ? s.aqi : 'N/A'}
+                    </Text>
                   </GlassCard>
                 ))}
               </View>
 
-              {aqi.distance_km > 5 && (
+              {aqi.distance_km !== null && aqi.distance_km > 5 && (
                 <Text style={[typeScale.small, { color: colors.muted, textAlign: 'center' }]}>
                   Nearest ground station ~{aqi.distance_km}km away · averaged from {aqi.source_count} sources
                 </Text>

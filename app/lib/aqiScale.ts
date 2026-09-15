@@ -1,4 +1,5 @@
-export function aqiLabel(aqi: number): string {
+export function aqiLabel(aqi: number | null): string {
+  if (aqi === null) return 'Unknown';
   if (aqi <= 50) return 'Good';
   if (aqi <= 100) return 'Moderate';
   if (aqi <= 200) return 'Unhealthy';

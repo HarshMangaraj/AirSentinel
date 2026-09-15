@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 type Props = {
   lat: number;
   lon: number;
-  aqi: number;
+  aqi: number | null;
   aqiColor: string;
   station: string;
   isDark: boolean;
@@ -60,7 +60,7 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, onMapPres
         marker.bindPopup(
           '<div style="font-family: -apple-system, sans-serif; padding: 2px;">' +
           '<b style="font-size:14px;">${station}</b><br/>' +
-          '<span style="opacity:0.7; font-size:12px;">AQI ' + ${aqi} + '</span>' +
+          '<span style="opacity:0.7; font-size:12px;">AQI ' + ${aqi !== null ? aqi : "'N/A'"} + '</span>' +
           '</div>'
         ).openPopup();
 
