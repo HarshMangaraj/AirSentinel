@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { Screen } from '../components/Screen';
 import { LeafletMap } from '../components/LeafletMap';
 import { useAuth } from '../context/AuthContext';
 import { getCities, getCurrentAqi, City, AqiReading } from '../lib/api';
-import { getDeviceLocation, reverseGeocode } from '../lib/location';
+import { getDeviceLocation, reverseGeocode, searchPlace } from '../lib/location';
 import { aqiColor, aqiLabel } from '../lib/aqiScale';
 import { colors, type, spacing, radius } from '../theme/tokens';
 
 type Point = { lat: number; lon: number; label: string };
+
+function timeAgo(iso: string | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return null;
+  const diffMin = Math.round((Date.now() - then) / 60000);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return `${Math.round(diffHr / 24)}d ago`;
+}
 
 export function HomeScreen() {
   const { signOut } = useAuth();
@@ -19,6 +30,8 @@ export function HomeScreen() {
   const [loadingAqi, setLoadingAqi] = useState(false);
   const [aqiError, setAqiError] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     getCities()
@@ -38,7 +51,7 @@ export function HomeScreen() {
     setAqi(null);
     setAqiError(false);
 
-    getCurrentAqi(point.lat, point.lon)
+    getCurrentAqi(point.lat, point.lon, point.label)
       .then((data) => {
         if (!cancelled) setAqi(data);
       })
@@ -72,6 +85,17 @@ export function HomeScreen() {
     setPoint({ lat, lon, label });
   }
 
+  async function handleSearch() {
+    if (!searchText.trim()) return;
+    setSearching(true);
+    const result = await searchPlace(searchText.trim());
+    setSearching(false);
+    if (result) {
+      setPoint(result);
+      setSearchText('');
+    }
+  }
+
   if (loadingCities) {
     return (
       <Screen style={styles.center}>
@@ -80,12 +104,29 @@ export function HomeScreen() {
     );
   }
 
+  const freshness = aqi ? timeAgo(aqi.updated_at) : null;
+
   return (
     <Screen style={{ padding: 0 }}>
       <View style={styles.header}>
         <Text style={type.title}>AirSentinel</Text>
         <Pressable onPress={signOut}>
           <Text style={styles.signOut}>Sign out</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search a place in India"
+          placeholderTextColor={colors.muted}
+          value={searchText}
+          onChangeText={setSearchText}
+          onSubmitEditing={handleSearch}
+          returnKeyType="search"
+        />
+        <Pressable style={styles.searchBtn} onPress={handleSearch} disabled={searching}>
+          <Text style={styles.searchBtnText}>{searching ? '…' : 'Go'}</Text>
         </Pressable>
       </View>
 
@@ -118,8 +159,6 @@ export function HomeScreen() {
         }}
       />
 
-      <Text style={styles.tapHint}>Or tap anywhere on the map to check that spot</Text>
-
       {loadingAqi ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.signal} />
@@ -127,7 +166,7 @@ export function HomeScreen() {
       ) : aqiError || !aqi ? (
         <View style={styles.center}>
           <Text style={[type.body, styles.errorText]}>
-            AQI data isn't available for {point?.label} right now. Try another spot on the map.
+            AQI data isn't available for {point?.label} right now. Try another spot or search a nearby city.
           </Text>
         </View>
       ) : (
@@ -137,6 +176,11 @@ export function HomeScreen() {
               <Text style={type.small}>{point?.label}</Text>
               <Text style={[type.hero, { color: aqiColor(aqi.aqi) }]}>{aqi.aqi}</Text>
               <Text style={type.label}>{aqiLabel(aqi.aqi)}</Text>
+              <Text style={[type.small, { color: colors.muted, marginTop: 4 }]}>
+                {aqi.station}
+                {aqi.distance_km > 5 ? ` · ${aqi.distance_km}km away` : ''}
+                {freshness ? ` · updated ${freshness}` : ''}
+              </Text>
             </View>
             <View style={[styles.dot, { backgroundColor: aqiColor(aqi.aqi) }]} />
           </View>
@@ -167,6 +211,29 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   signOut: { color: colors.muted, ...type.label },
+  searchRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.ink,
+    backgroundColor: '#FFFFFF',
+  },
+  searchBtn: {
+    backgroundColor: colors.signal,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+  },
+  searchBtnText: { color: colors.paper, ...type.label },
   actionRow: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   locateBtn: {
     borderWidth: 1,
@@ -176,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   locateBtnText: { ...type.label, color: colors.signal },
-  cityList: { paddingHorizontal: spacing.lg, gap: spacing.sm, marginTop: spacing.sm },
+  cityList: { paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
@@ -188,7 +255,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.signal, borderColor: colors.signal },
   chipText: { ...type.label, color: colors.ink },
   chipTextActive: { color: colors.paper },
-  tapHint: { ...type.small, color: colors.muted, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
   aqiCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',

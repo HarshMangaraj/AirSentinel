@@ -7,7 +7,7 @@ async function authedFetch(path: string) {
   const token = data.session?.access_token;
 
   const controller = new AbortController();
- const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -36,14 +36,16 @@ export type AqiReading = {
   station: string;
   lat: number;
   lon: number;
-  updated_at: string;
-  dominant_pollutant: string;
+  updated_at: string | null;
+  dominant_pollutant: string | null;
+  distance_km: number;
 };
 
 export function getCities(): Promise<City[]> {
   return authedFetch('/cities');
 }
 
-export function getCurrentAqi(lat: number, lon: number): Promise<AqiReading> {
-  return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}`);
+export function getCurrentAqi(lat: number, lon: number, place?: string): Promise<AqiReading> {
+  const placeParam = place ? `&place=${encodeURIComponent(place)}` : '';
+  return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}${placeParam}`);
 }

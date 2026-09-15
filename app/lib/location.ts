@@ -26,3 +26,21 @@ export async function reverseGeocode(lat: number, lon: number): Promise<string> 
     return 'Selected location';
   }
 }
+
+export async function searchPlace(query: string): Promise<{ lat: number; lon: number; label: string } | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`,
+      { headers: { 'User-Agent': 'AirSentinelApp/1.0' } }
+    );
+    const data = await res.json();
+    if (!data.length) return null;
+    return {
+      lat: parseFloat(data[0].lat),
+      lon: parseFloat(data[0].lon),
+      label: data[0].display_name.split(',')[0],
+    };
+  } catch {
+    return null;
+  }
+}
