@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { SignInScreen } from '../screens/SignInScreen';
 import { VerifyOtpScreen } from '../screens/VerifyOtpScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { ReportScreen } from '../screens/ReportScreen';
 
 const Stack = createNativeStackNavigator();
 

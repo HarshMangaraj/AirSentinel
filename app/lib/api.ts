@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+
 const API_BASE = 'http://192.168.31.188:8000';
 
 async function authedFetch(path: string) {
@@ -52,4 +53,41 @@ export function getCities(): Promise<City[]> {
 
 export function getCurrentAqi(lat: number, lon: number): Promise<AqiReading> {
   return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}`);
+}
+
+export type ReportInput = {
+  description?: string;
+  media_url?: string;
+  lat: number;
+  lon: number;
+};
+
+export async function submitReport(payload: ReportInput) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  const res = await fetch(`${API_BASE}/reports`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Report submission failed: ${res.status}`);
+  return res.json();
+}
+
+export type NearbyReport = {
+  id: string;
+  description: string | null;
+  media_url: string | null;
+  lat: number;
+  lon: number;
+  status: string;
+  created_at: string | null;
+};
+
+export function getNearbyReports(lat: number, lon: number): Promise<NearbyReport[]> {
+  return authedFetch(`/reports/nearby?lat=${lat}&lon=${lon}`);
 }

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.auth import get_current_user, require_admin
 from app.models.models import User
-from app.api import cities, aqi
+from app.api import cities, aqi, reports
 
 app = FastAPI(title="AirSentinel API", version="0.1.0")
 
@@ -16,6 +16,7 @@ app.add_middleware(
 
 app.include_router(cities.router)
 app.include_router(aqi.router)
+app.include_router(reports.router)
 
 
 @app.get("/health")
