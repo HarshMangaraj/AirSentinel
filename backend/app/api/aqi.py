@@ -14,7 +14,7 @@ CPCB_RESOURCE_ID = "3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69"
 
 transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
 MAX_DISTANCE_KM = 100
-PER_SOURCE_TIMEOUT = 5.0  # each source gets at most this long; a slow one can't drag the whole response down
+PER_SOURCE_TIMEOUT = 5.0
 
 
 def _distance_km(lat1, lon1, lat2, lon2):
@@ -221,8 +221,8 @@ async def _get_cpcb(client, lat, lon):
     return _empty("CPCB (Govt. of India)")
 
 
-@router.get("/current")
-async def current_aqi(lat: float = Query(...), lon: float = Query(...)):
+async def fetch_aqi_for_location(lat: float, lon: float):
+    """Core multi-source fetch, reusable by both the live endpoint and the scheduled ingestion job."""
     async with httpx.AsyncClient(timeout=PER_SOURCE_TIMEOUT + 1, transport=transport) as client:
         sources = await asyncio.gather(
             _get_waqi(client, lat, lon),
@@ -248,3 +248,8 @@ async def current_aqi(lat: float = Query(...), lon: float = Query(...)):
         "sources": sources,
         "source_count": len(valid),
     }
+
+
+@router.get("/current")
+async def current_aqi(lat: float = Query(...), lon: float = Query(...)):
+    return await fetch_aqi_for_location(lat, lon)

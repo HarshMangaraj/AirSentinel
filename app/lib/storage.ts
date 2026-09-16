@@ -4,11 +4,14 @@ import { decode } from 'base64-arraybuffer';
 
 export async function uploadReportImage(localUri: string): Promise<string | null> {
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id || 'anonymous';
+
     const file = new File(localUri);
     const base64 = await file.base64();
 
     const fileExt = localUri.split('.').pop() || 'jpg';
-    const fileName = `${Date.now()}.${fileExt}`;
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
     const { error } = await supabase.storage
       .from('reports')
