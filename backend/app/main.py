@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -7,6 +8,8 @@ from app.core.auth import get_current_user, require_admin
 from app.models.models import User
 from app.api import cities, aqi, reports
 from app.jobs.ingest import run_all_ingestion
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="AirSentinel API", version="0.1.0")
 
@@ -26,9 +29,10 @@ scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
 async def start_scheduler():
-    scheduler.add_job(run_all_ingestion, "interval", minutes=15, id="ingestion_job")
-    scheduler.start()
-    asyncio.create_task(run_all_ingestion())
+    if not scheduler.running:
+        scheduler.add_job(run_all_ingestion, "interval", minutes=15, id="ingestion_job")
+        scheduler.start()
+        asyncio.create_task(run_all_ingestion())
 
 
 @app.get("/health")

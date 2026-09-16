@@ -1,6 +1,16 @@
 import { WebView } from 'react-native-webview';
 import { StyleSheet } from 'react-native';
 
+type ReportPin = {
+  id: string;
+  lat: number;
+  lon: number;
+  description: string | null;
+  media_url: string | null;
+  status: string;
+  created_at: string | null;
+};
+
 type Props = {
   lat: number;
   lon: number;
@@ -8,17 +18,42 @@ type Props = {
   aqiColor: string;
   station: string;
   isDark: boolean;
+  reports?: ReportPin[];
   onMapPress?: (lat: number, lon: number) => void;
 };
 
-export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, onMapPress }: Props) {
+export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports = [], onMapPress }: Props) {
   const popupBg = isDark ? '#1A2420' : '#FFFFFF';
   const popupText = isDark ? '#EAF2EE' : '#1A2420';
 
-  // CSS filter recolors plain OSM tiles to match the app palette — no paid/key-gated tile provider needed
   const tileFilter = isDark
     ? 'invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.5)'
     : 'grayscale(0.35) brightness(1.08) saturate(0.6) contrast(0.95)';
+
+  const reportMarkersJs = reports
+    .map((r) => {
+      const desc = (r.description || 'Pollution report').replace(/'/g, "\\'").replace(/\n/g, ' ');
+      const img = r.media_url
+        ? `<img src="${r.media_url}" style="width:100%;border-radius:8px;margin-top:6px;max-height:120px;object-fit:cover;" />`
+        : '';
+      const when = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
+      return `
+        L.marker([${r.lat}, ${r.lon}], {
+          icon: L.divIcon({
+            className: '',
+            html: '<div style="background:#D9722F;width:14px;height:14px;border-radius:50%;border:2px solid ${popupBg};box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+            iconSize: [14, 14],
+          })
+        }).addTo(map).bindPopup(
+          '<div style="font-family:-apple-system, sans-serif; padding:2px; max-width:180px;">' +
+          '<b style="font-size:13px;">${desc}</b><br/>' +
+          '<span style="opacity:0.6; font-size:11px;">${when}</span>' +
+          '${img}' +
+          '</div>'
+        );
+      `;
+    })
+    .join('\n');
 
   const html = `
     <!DOCTYPE html>
@@ -60,9 +95,11 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, onMapPres
         marker.bindPopup(
           '<div style="font-family: -apple-system, sans-serif; padding: 2px;">' +
           '<b style="font-size:14px;">${station}</b><br/>' +
-          '<span style="opacity:0.7; font-size:12px;">AQI ' + ${aqi !== null ? aqi : "'N/A'"} + '</span>' +
+          '<span style="opacity:0.7; font-size:12px;">AQI ' + ${aqi ?? "'N/A'"} + '</span>' +
           '</div>'
         ).openPopup();
+
+        ${reportMarkersJs}
 
         map.on('click', function(e) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
