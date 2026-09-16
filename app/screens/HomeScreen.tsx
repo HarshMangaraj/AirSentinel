@@ -8,7 +8,7 @@ import { GlassSkeleton } from '../components/GlassSkeleton';
 import { LeafletMap } from '../components/LeafletMap';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { getCities, getCurrentAqi, City, AqiReading } from '../lib/api';
+import { getCities, getCurrentAqi, getNearbyReports, City, AqiReading, NearbyReport } from '../lib/api';
 import { getDeviceLocation, reverseGeocode, searchPlace } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
 import { spacing, type as typeScale, radius } from '../theme/tokens';
@@ -32,11 +32,11 @@ function aqiAdvisory(aqi: number | null): string {
 }
 
 export function HomeScreen({ navigation }: any) {
-  const { signOut } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
   const [cities, setCities] = useState<City[]>([]);
   const [point, setPoint] = useState<Point | null>(null);
   const [aqi, setAqi] = useState<AqiReading | null>(null);
+  const [nearbyReports, setNearbyReports] = useState<NearbyReport[]>([]);
   const [loadingCities, setLoadingCities] = useState(true);
   const [loadingAqi, setLoadingAqi] = useState(false);
   const [aqiError, setAqiError] = useState(false);
@@ -93,6 +93,10 @@ export function HomeScreen({ navigation }: any) {
       .finally(() => {
         if (!cancelled) setLoadingAqi(false);
       });
+
+    getNearbyReports(point.lat, point.lon)
+      .then((data) => { if (!cancelled) setNearbyReports(data); })
+      .catch(() => { if (!cancelled) setNearbyReports([]); });
 
     return () => {
       cancelled = true;
@@ -154,9 +158,8 @@ export function HomeScreen({ navigation }: any) {
               <GlassCard style={styles.iconBtn} intensity={25} onPress={toggleTheme}>
                 <Feather name={isDark ? 'sun' : 'moon'} size={16} color={colors.ink} />
               </GlassCard>
-              <GlassCard style={styles.signOutBtn} intensity={25} onPress={signOut}>
-                <Feather name="log-out" size={14} color={colors.muted} style={{ marginRight: 5 }} />
-                <Text style={[styles.signOutText, { color: colors.ink }]}>Exit</Text>
+              <GlassCard style={styles.iconBtn} intensity={25} onPress={() => navigation.navigate('Profile')}>
+                <Feather name="menu" size={18} color={colors.ink} />
               </GlassCard>
             </View>
           </View>
@@ -325,7 +328,9 @@ export function HomeScreen({ navigation }: any) {
                     <Feather name="map" size={14} color={colors.ink} style={{ marginRight: 6 }} />
                     <Text style={[styles.mapTitle, { color: colors.ink }]}>Station Coordinates Map</Text>
                   </View>
-                  <Text style={[styles.mapSub, { color: colors.muted }]}>Tap anywhere to inspect</Text>
+                  <Text style={[styles.mapSub, { color: colors.muted }]}>
+                    {nearbyReports.length > 0 ? `${nearbyReports.length} reports nearby` : 'Tap anywhere to inspect'}
+                  </Text>
                 </View>
                 <View style={styles.mapCanvas}>
                   <LeafletMap
@@ -335,6 +340,7 @@ export function HomeScreen({ navigation }: any) {
                     aqiColor={activeColor}
                     station={point!.label}
                     isDark={isDark}
+                    reports={nearbyReports}
                     onMapPress={handleMapPress}
                   />
                 </View>
@@ -363,11 +369,6 @@ const styles = StyleSheet.create({
 
   headerActions: { flexDirection: 'row', gap: spacing.xs + 2, alignItems: 'center' },
   iconBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: radius.md },
-  signOutBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.md,
-  },
-  signOutText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
 
   searchCard: {
     flexDirection: 'row', alignItems: 'center',

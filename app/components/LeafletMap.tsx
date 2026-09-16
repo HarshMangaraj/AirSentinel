@@ -25,6 +25,7 @@ type Props = {
 export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports = [], onMapPress }: Props) {
   const popupBg = isDark ? '#1A2420' : '#FFFFFF';
   const popupText = isDark ? '#EAF2EE' : '#1A2420';
+  const signalColor = '#D9722F';
 
   const tileFilter = isDark
     ? 'invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.5)'
@@ -38,18 +39,20 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports =
         : '';
       const when = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
       return `
-        L.marker([${r.lat}, ${r.lon}], {
-          icon: L.divIcon({
-            className: '',
-            html: '<div style="background:#D9722F;width:14px;height:14px;border-radius:50%;border:2px solid ${popupBg};box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
-            iconSize: [14, 14],
-          })
-        }).addTo(map).bindPopup(
-          '<div style="font-family:-apple-system, sans-serif; padding:2px; max-width:180px;">' +
-          '<b style="font-size:13px;">${desc}</b><br/>' +
-          '<span style="opacity:0.6; font-size:11px;">${when}</span>' +
-          '${img}' +
-          '</div>'
+        reportCluster.addLayer(
+          L.marker([${r.lat}, ${r.lon}], {
+            icon: L.divIcon({
+              className: '',
+              html: '<div style="background:${signalColor};width:14px;height:14px;border-radius:50%;border:2px solid ${popupBg};box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+              iconSize: [14, 14],
+            })
+          }).bindPopup(
+            '<div style="font-family:-apple-system, sans-serif; padding:2px; max-width:180px;">' +
+            '<b style="font-size:13px;">${desc}</b><br/>' +
+            '<span style="opacity:0.6; font-size:11px;">${when}</span>' +
+            '${img}' +
+            '</div>'
+          )
         );
       `;
     })
@@ -61,6 +64,7 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports =
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
       <style>
         html, body, #map { height: 100%; margin: 0; padding: 0; background: ${isDark ? '#0E1512' : '#F4F6F2'}; }
         .leaflet-tile-pane { filter: ${tileFilter}; }
@@ -72,11 +76,25 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports =
         }
         .leaflet-popup-tip { background: ${popupBg}; }
         .leaflet-control-attribution { font-size: 9px; opacity: 0.6; }
+
+        .report-cluster-icon {
+          background: ${signalColor};
+          color: #fff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, sans-serif;
+          font-weight: 700;
+          border: 3px solid ${popupBg};
+          box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
       </style>
     </head>
     <body>
       <div id="map"></div>
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
       <script>
         const map = L.map('map', { zoomControl: false }).setView([${lat}, ${lon}], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -99,7 +117,24 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports =
           '</div>'
         ).openPopup();
 
+        const reportCluster = L.markerClusterGroup({
+          maxClusterRadius: 45,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+          iconCreateFunction: function(cluster) {
+            const count = cluster.getChildCount();
+            const size = count < 10 ? 30 : count < 25 ? 36 : 42;
+            return L.divIcon({
+              html: '<div class="report-cluster-icon" style="width:' + size + 'px;height:' + size + 'px;font-size:' + (count < 10 ? 12 : 13) + 'px;">' + count + '</div>',
+              className: '',
+              iconSize: [size, size],
+            });
+          }
+        });
+
         ${reportMarkersJs}
+
+        map.addLayer(reportCluster);
 
         map.on('click', function(e) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
