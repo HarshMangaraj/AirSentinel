@@ -55,3 +55,20 @@ def nearby_reports(lat: float, lon: float, radius_km: float = 50, db: Session = 
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             })
     return result
+
+@router.get("/mine")
+def my_reports(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    reports = db.query(Report).filter(Report.user_id == user.id).order_by(Report.created_at.desc()).all()
+    result = []
+    for r in reports:
+        point = to_shape(r.location)
+        result.append({
+            "id": r.id,
+            "description": r.description,
+            "media_url": r.media_url,
+            "lat": point.y,
+            "lon": point.x,
+            "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return result
