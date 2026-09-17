@@ -1,15 +1,8 @@
 import { WebView } from 'react-native-webview';
 import { StyleSheet } from 'react-native';
+import type { NearbyReport } from '../lib/api';
 
-type ReportPin = {
-  id: string;
-  lat: number;
-  lon: number;
-  description: string | null;
-  media_url: string | null;
-  status: string;
-  created_at: string | null;
-};
+type ReportPin = NearbyReport;
 
 type Props = {
   lat: number;

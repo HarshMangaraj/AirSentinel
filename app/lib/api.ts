@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 
-
 const API_BASE = 'http://192.168.31.188:8000';
 
 async function authedFetch(path: string) {
@@ -92,6 +91,9 @@ export function getNearbyReports(lat: number, lon: number): Promise<NearbyReport
   return authedFetch(`/reports/nearby?lat=${lat}&lon=${lon}`);
 }
 
+export function getMyReports(): Promise<NearbyReport[]> {
+  return authedFetch('/reports/mine');
+}
 
 export type Alert = {
   id: string;
@@ -103,4 +105,38 @@ export type Alert = {
 
 export function getAlerts(): Promise<{ alerts: Alert[] }> {
   return authedFetch('/alerts');
+}
+
+export type Prediction = {
+  prediction?: string;
+  current_aqi?: number;
+  trend_per_reading?: number;
+  forecast_next_reading?: number;
+  spike_warning?: boolean;
+};
+
+export function getPrediction(cityId: string): Promise<Prediction> {
+  return authedFetch(`/predict/spike/${cityId}`);
+}
+
+export type Attribution = {
+  probable_cause: string;
+  scores: Record<string, number>;
+  explanation: string;
+};
+
+export function getAttribution(cityId: string): Promise<Attribution> {
+  return authedFetch(`/attribution/${cityId}`);
+}
+
+export type Hotspot = {
+  cities: string[];
+  lat: number;
+  lon: number;
+  max_aqi: number;
+  severity: string;
+};
+
+export function getHotspots(): Promise<{ threshold: number; hotspots: Hotspot[] }> {
+  return authedFetch('/hotspots');
 }
