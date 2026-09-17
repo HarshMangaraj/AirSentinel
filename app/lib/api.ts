@@ -91,3 +91,16 @@ export type NearbyReport = {
 export function getNearbyReports(lat: number, lon: number): Promise<NearbyReport[]> {
   return authedFetch(`/reports/nearby?lat=${lat}&lon=${lon}`);
 }
+
+
+export type Alert = {
+  id: string;
+  category: string;
+  severity: string;
+  title: string;
+  message: string;
+};
+
+export function getAlerts(): Promise<{ alerts: Alert[] }> {
+  return authedFetch('/alerts');
+}

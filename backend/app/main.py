@@ -8,6 +8,7 @@ from app.core.auth import get_current_user, require_admin
 from app.models.models import User
 from app.api import cities, aqi, reports
 from app.jobs.ingest import run_all_ingestion
+from app.api import cities, aqi, reports, hotspots, predictions, attribution, alerts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -23,6 +24,10 @@ app.add_middleware(
 app.include_router(cities.router)
 app.include_router(aqi.router)
 app.include_router(reports.router)
+app.include_router(hotspots.router)
+app.include_router(predictions.router)
+app.include_router(attribution.router)
+app.include_router(alerts.router)
 
 scheduler = AsyncIOScheduler()
 
