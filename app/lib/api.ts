@@ -56,6 +56,7 @@ export function getCurrentAqi(lat: number, lon: number): Promise<AqiReading> {
 
 export type ReportInput = {
   description?: string;
+  category?: string;
   media_url?: string;
   lat: number;
   lon: number;
@@ -80,13 +81,15 @@ export async function submitReport(payload: ReportInput) {
 export type NearbyReport = {
   id: string;
   description: string | null;
+  category: string | null;
   media_url: string | null;
   lat: number;
   lon: number;
   status: string;
   created_at: string | null;
+  status_updated_at?: string | null;
+  distance_km?: number;
 };
-
 export function getNearbyReports(lat: number, lon: number): Promise<NearbyReport[]> {
   return authedFetch(`/reports/nearby?lat=${lat}&lon=${lon}`);
 }
@@ -139,4 +142,28 @@ export type Hotspot = {
 
 export function getHotspots(): Promise<{ threshold: number; hotspots: Hotspot[] }> {
   return authedFetch('/hotspots');
+}
+
+export type Weather = {
+  temperature_c: number;
+  humidity_pct: number;
+  wind_speed_kmh: number;
+  wind_direction_deg: number;
+  wind_direction_compass: string;
+  precipitation_mm: number;
+};
+
+export function getWeather(lat: number, lon: number): Promise<Weather> {
+  return authedFetch(`/weather/current?lat=${lat}&lon=${lon}`);
+}
+
+export type AqiHistoryPoint = { aqi: number; recorded_at: string | null };
+export type AqiHistory = { available: boolean; city_id?: string; city_name?: string; readings: AqiHistoryPoint[] };
+
+export function getAqiHistory(lat: number, lon: number): Promise<AqiHistory> {
+  return authedFetch(`/aqi/history?lat=${lat}&lon=${lon}`);
+}
+
+export function getReport(id: string): Promise<NearbyReport & { category: string | null; status_updated_at: string | null }> {
+  return authedFetch(`/reports/${id}`);
 }

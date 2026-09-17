@@ -66,6 +66,9 @@ class Report(Base):
         default="pending",
         nullable=False,
     )
+    category = Column(String, nullable=True)
+    status_updated_at = Column(DateTime, default=datetime.utcnow)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="reports")

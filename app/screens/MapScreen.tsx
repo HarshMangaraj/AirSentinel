@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { LeafletMap } from '../components/LeafletMap';
 import { useTheme } from '../context/ThemeContext';
-import { getCities, getCurrentAqi, getNearbyReports, City, AqiReading, NearbyReport } from '../lib/api';
+import { getCities, getCurrentAqi, getNearbyReports, getWeather, City, AqiReading, NearbyReport, Weather } from '../lib/api';
 import { getDeviceLocation, reverseGeocode, searchPlace } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
 import { spacing, type as typeScale, radius } from '../theme/tokens';
@@ -20,11 +20,12 @@ function aqiColorFor(colors: any, aqi: number | null) {
   return colors.aqi.hazardous;
 }
 
-export function MapScreen() {
+export function MapScreen({ navigation }: any) {
   const { colors, isDark } = useTheme();
   const [cities, setCities] = useState<City[]>([]);
   const [point, setPoint] = useState<Point | null>(null);
   const [aqi, setAqi] = useState<AqiReading | null>(null);
+  const [weather, setWeather] = useState<Weather | null>(null);
   const [reports, setReports] = useState<NearbyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -41,6 +42,7 @@ export function MapScreen() {
   useEffect(() => {
     if (!point) return;
     getCurrentAqi(point.lat, point.lon).then(setAqi).catch(() => setAqi(null));
+    getWeather(point.lat, point.lon).then(setWeather).catch(() => setWeather(null));
     getNearbyReports(point.lat, point.lon).then(setReports).catch(() => setReports([]));
   }, [point]);
 
@@ -66,6 +68,8 @@ export function MapScreen() {
   }
 
   const activeColor = aqi ? aqiColorFor(colors, aqi.aqi) : colors.signal;
+
+  const sortedReports = [...reports].sort((a, b) => (a.distance_km ?? 0) - (b.distance_km ?? 0)).slice(0, 5);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
@@ -102,6 +106,15 @@ export function MapScreen() {
         />
       </GlassCard>
 
+      {weather && (
+        <View style={styles.windRow}>
+          <Feather name="wind" size={12} color={colors.muted} />
+          <Text style={[typeScale.small, { color: colors.muted, marginLeft: 4 }]}>
+            Wind direction {weather.wind_direction_compass} · {Math.round(weather.wind_speed_kmh)} km/h
+          </Text>
+        </View>
+      )}
+
       <View style={styles.mapWrap}>
         {loading || !point ? (
           <ActivityIndicator color={colors.signal} style={{ marginTop: 40 }} />
@@ -119,23 +132,48 @@ export function MapScreen() {
         )}
       </View>
 
-      {point && aqi && (
-        <GlassCard style={styles.selectedCard} intensity={35}>
-          <Text style={[typeScale.label, { color: colors.ink }]}>{point.label}</Text>
-          <Text style={[typeScale.small, { color: activeColor }]}>
-            AQI {aqi.aqi ?? '--'} · {aqiLabel(aqi.aqi)}
-          </Text>
-        </GlassCard>
-      )}
+      <ScrollView style={{ marginTop: spacing.sm }} showsVerticalScrollIndicator={false}>
+        {point && aqi && (
+          <GlassCard style={styles.selectedCard} intensity={35}>
+            <Text style={[typeScale.label, { color: colors.ink }]}>{point.label}</Text>
+            <Text style={[typeScale.small, { color: activeColor }]}>
+              AQI {aqi.aqi ?? '--'} · {aqiLabel(aqi.aqi)}
+            </Text>
+          </GlassCard>
+        )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        {cities.map((c) => (
-          <Pressable key={c.id} onPress={() => setPoint({ lat: c.lat, lon: c.lon, label: c.name })}>
-            <View style={[styles.chip, { borderColor: colors.glassBorder, backgroundColor: colors.glass }]}>
-              <Text style={[typeScale.small, { color: colors.ink }]}>{c.name}</Text>
-            </View>
-          </Pressable>
-        ))}
+        {sortedReports.length > 0 && (
+          <>
+            <Text style={[typeScale.label, { color: colors.muted, marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+              Nearby Sources
+            </Text>
+            {sortedReports.map((r) => (
+              <Pressable key={r.id} onPress={() => navigation.navigate('EventDetails', { id: r.id })}>
+                <GlassCard style={styles.sourceRow} intensity={30}>
+                  <Feather name="alert-triangle" size={16} color={colors.signal} style={{ marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typeScale.body, { color: colors.ink }]} numberOfLines={1}>
+                      {r.category || r.description || 'Pollution report'}
+                    </Text>
+                    <Text style={[typeScale.small, { color: colors.muted }]}>
+                      {r.distance_km ? `${r.distance_km} km` : ''} · {r.status}
+                    </Text>
+                  </View>
+                </GlassCard>
+              </Pressable>
+            ))}
+          </>
+        )}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+          {cities.map((c) => (
+            <Pressable key={c.id} onPress={() => setPoint({ lat: c.lat, lon: c.lon, label: c.name })}>
+              <View style={[styles.chip, { borderColor: colors.glassBorder, backgroundColor: colors.glass }]}>
+                <Text style={[typeScale.small, { color: colors.ink }]}>{c.name}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -147,10 +185,12 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  searchCard: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, marginBottom: spacing.sm },
+  searchCard: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, marginBottom: spacing.xs },
   searchInput: { flex: 1, height: 40, ...typeScale.body },
-  mapWrap: { flex: 1, borderRadius: radius.lg, overflow: 'hidden', marginBottom: spacing.sm },
+  windRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  mapWrap: { height: 260, borderRadius: radius.lg, overflow: 'hidden' },
   selectedCard: { marginBottom: spacing.sm },
-  chipRow: { maxHeight: 44 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
+  chipRow: { marginTop: spacing.sm, marginBottom: spacing.lg },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, marginRight: spacing.sm },
 });
