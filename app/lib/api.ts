@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const API_BASE = 'http://192.168.31.188:8000';
+const API_BASE = 'http://192.168.29.148:8000';
 
 async function authedFetch(path: string) {
   const { data } = await supabase.auth.getSession();
