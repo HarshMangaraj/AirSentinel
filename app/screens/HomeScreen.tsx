@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { CircularGauge } from '../components/CircularGauge';
+import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { getCities, getCurrentAqi, getPrediction, City, AqiReading } from '../lib/api';
+import { getCurrentAqi, getPrediction, getCities, getWeather, getAqiHistory, AqiReading, Weather, AqiHistory } from '../lib/api';
 import { getDeviceLocation, reverseGeocode } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
 import { spacing, type as typeScale, radius } from '../theme/tokens';
@@ -24,6 +25,8 @@ export function HomeScreen({ navigation }: any) {
   const { colors, isDark, toggleTheme } = useTheme();
   const [locationLabel, setLocationLabel] = useState('Locating...');
   const [aqi, setAqi] = useState<AqiReading | null>(null);
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [history, setHistory] = useState<AqiHistory | null>(null);
   const [prediction, setPrediction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,13 +37,18 @@ export function HomeScreen({ navigation }: any) {
       const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
       setLocationLabel(label);
 
-      const aqiData = await getCurrentAqi(point.lat, point.lon).catch(() => null);
+      const [aqiData, weatherData, historyData, cities] = await Promise.all([
+        getCurrentAqi(point.lat, point.lon).catch(() => null),
+        getWeather(point.lat, point.lon).catch(() => null),
+        getAqiHistory(point.lat, point.lon).catch(() => null),
+        getCities().catch(() => []),
+      ]);
       setAqi(aqiData);
+      setWeather(weatherData);
+      setHistory(historyData);
 
-      const cities = await getCities().catch(() => []);
-      const nearest = cities[0];
-      if (nearest) {
-        const pred = await getPrediction(nearest.id).catch(() => null);
+      if (historyData?.city_id) {
+        const pred = await getPrediction(historyData.city_id).catch(() => null);
         setPrediction(pred);
       }
       setLoading(false);
@@ -49,13 +57,14 @@ export function HomeScreen({ navigation }: any) {
 
   const activeColor = aqi ? aqiColorFor(colors, aqi.aqi) : colors.signal;
   const greeting = session?.user.email?.split('@')[0] || 'there';
+  const pm25Source = aqi?.sources.find((s) => s.aqi !== null);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }}>
         <View style={styles.header}>
           <View>
-            <Text style={[typeScale.small, { color: colors.muted }]}>Good morning,</Text>
+            <Text style={[typeScale.small, { color: colors.muted }]}>Good day,</Text>
             <Text style={[typeScale.title, { color: colors.ink, textTransform: 'capitalize' }]}>{greeting}</Text>
             <View style={styles.locRow}>
               <Feather name="map-pin" size={12} color={colors.muted} />
@@ -77,9 +86,9 @@ export function HomeScreen({ navigation }: any) {
               <CircularGauge value={aqi?.aqi ?? null} color={activeColor} label={`AQI · ${aqiLabel(aqi?.aqi ?? null)}`} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <View style={styles.pollutantRow}>
-                  <Text style={[typeScale.small, { color: colors.muted }]}>PM2.5</Text>
+                  <Text style={[typeScale.small, { color: colors.muted }]}>Top source</Text>
                   <Text style={[typeScale.label, { color: colors.ink }]}>
-                    {aqi?.sources.find((s) => s.aqi !== null)?.aqi ?? '--'} µg/m³
+                    {pm25Source ? `${pm25Source.source}: ${pm25Source.aqi}` : '--'}
                   </Text>
                 </View>
                 <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
@@ -90,18 +99,48 @@ export function HomeScreen({ navigation }: any) {
               </View>
             </GlassCard>
 
-            {prediction && prediction.prediction !== 'insufficient_data' && (
-              <GlassCard style={styles.outlookCard} intensity={30}>
-                <Feather name="trending-up" size={16} color={colors.signal} style={{ marginRight: 10 }} />
-                <View>
-                  <Text style={[typeScale.label, { color: colors.ink }]}>Next Pollution Outlook</Text>
-                  <Text style={[typeScale.small, { color: colors.muted }]}>
-                    Forecast: {prediction.forecast_next_reading} AQI
-                    {prediction.spike_warning ? ' · Spike expected' : ' · Expected to remain steady'}
+            {weather && (
+              <View style={styles.weatherRow}>
+                <GlassCard style={styles.weatherCard} intensity={30}>
+                  <Feather name="wind" size={16} color={colors.signal} />
+                  <Text style={[typeScale.small, { color: colors.ink, marginTop: 4 }]}>
+                    {weather.wind_direction_compass}
                   </Text>
-                </View>
-              </GlassCard>
+                  <Text style={[typeScale.small, { color: colors.muted }]}>
+                    {Math.round(weather.wind_speed_kmh)} km/h
+                  </Text>
+                </GlassCard>
+                <GlassCard style={styles.weatherCard} intensity={30}>
+                  <Feather name="thermometer" size={16} color={colors.signal} />
+                  <Text style={[typeScale.small, { color: colors.ink, marginTop: 4 }]}>
+                    {Math.round(weather.temperature_c)}°C
+                  </Text>
+                  <Text style={[typeScale.small, { color: colors.muted }]}>
+                    {Math.round(weather.humidity_pct)}% humidity
+                  </Text>
+                </GlassCard>
+              </View>
             )}
+
+            <GlassCard style={styles.outlookCard} intensity={30}>
+              <View style={styles.outlookHeader}>
+                <Feather name="trending-up" size={16} color={colors.signal} style={{ marginRight: 8 }} />
+                <Text style={[typeScale.label, { color: colors.ink }]}>Pollution Outlook</Text>
+              </View>
+              {history && history.available ? (
+                <TrendChart readings={history.readings} color={colors.signal} mutedColor={colors.muted} width={300} height={100} />
+              ) : (
+                <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
+                  Not enough historical data yet — check back after a few ingestion cycles.
+                </Text>
+              )}
+              {prediction && prediction.prediction !== 'insufficient_data' && (
+                <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
+                  Forecast next reading: <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.ink }}>{prediction.forecast_next_reading}</Text>
+                  {prediction.spike_warning ? ' · Spike expected' : ''}
+                </Text>
+              )}
+            </GlassCard>
 
             <Pressable onPress={() => navigation.navigate('Report')}>
               <View style={[styles.reportBtn, { backgroundColor: colors.signal }]}>
@@ -123,7 +162,10 @@ const styles = StyleSheet.create({
   iconBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: radius.md },
   gaugeCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginBottom: spacing.md },
   pollutantRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  outlookCard: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  weatherRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  weatherCard: { flex: 1, alignItems: 'flex-start' },
+  outlookCard: { marginBottom: spacing.md },
+  outlookHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   reportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: radius.md },
   reportBtnText: { color: '#FFF', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });
