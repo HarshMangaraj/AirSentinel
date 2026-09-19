@@ -148,7 +148,7 @@ export function MapScreen({ navigation }: any) {
               Nearby Sources
             </Text>
             {sortedReports.map((r) => (
-              <Pressable key={r.id} onPress={() => navigation.navigate('EventDetails', { id: r.id })}>
+              <Pressable key={r.id} onPress={() => navigation.getParent()?.navigate('EventDetails', { id: r.id })}>
                 <GlassCard style={styles.sourceRow} intensity={30}>
                   <Feather name="alert-triangle" size={16} color={colors.signal} style={{ marginRight: 10 }} />
                   <View style={{ flex: 1 }}>
