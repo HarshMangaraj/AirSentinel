@@ -201,3 +201,23 @@ export type AqiHistory = { available: boolean; city_id?: string; city_name?: str
 export function getAqiHistory(lat: number, lon: number): Promise<AqiHistory> {
   return authedFetch(`/aqi/history?lat=${lat}&lon=${lon}`);
 }
+
+export type Pollutants = {
+  pm2_5: number | null;
+  pm10: number | null;
+  no2: number | null;
+  so2: number | null;
+  o3: number | null;
+  co: number | null;
+  unit: string;
+};
+
+export function getPollutants(lat: number, lon: number): Promise<Pollutants> {
+  return authedFetch(`/pollutants/current?lat=${lat}&lon=${lon}`);
+}
+
+export type Briefing = { available: boolean; text: string; source?: string };
+
+export function getBriefing(lat: number, lon: number): Promise<Briefing> {
+  return authedFetch(`/intelligence/briefing?lat=${lat}&lon=${lon}`);
+}

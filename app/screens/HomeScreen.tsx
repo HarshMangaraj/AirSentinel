@@ -14,10 +14,14 @@ import {
   getWeather,
   getAqiHistory,
   getAiHotspots,
+  getPollutants,
+  getBriefing,
   AqiReading,
   Weather,
   AqiHistory,
   AiHotspot,
+  Pollutants,
+  Briefing,
 } from '../lib/api';
 import { getDeviceLocation, reverseGeocode } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
@@ -40,6 +44,8 @@ export function HomeScreen({ navigation }: any) {
   const [history, setHistory] = useState<AqiHistory | null>(null);
   const [prediction, setPrediction] = useState<any>(null);
   const [aiHotspots, setAiHotspots] = useState<AiHotspot[]>([]);
+  const [pollutants, setPollutants] = useState<Pollutants | null>(null);
+  const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,16 +55,20 @@ export function HomeScreen({ navigation }: any) {
       const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
       setLocationLabel(label);
 
-      const [aqiData, weatherData, historyData, hotspotData] = await Promise.all([
+      const [aqiData, weatherData, historyData, hotspotData, pollutantData, briefingData] = await Promise.all([
         getCurrentAqi(point.lat, point.lon).catch(() => null),
         getWeather(point.lat, point.lon).catch(() => null),
         getAqiHistory(point.lat, point.lon).catch(() => null),
         getAiHotspots().catch(() => ({ available: false, hotspots: [] })),
+        getPollutants(point.lat, point.lon).catch(() => null),
+        getBriefing(point.lat, point.lon).catch(() => null),
       ]);
       setAqi(aqiData);
       setWeather(weatherData);
       setHistory(historyData);
       setAiHotspots(hotspotData?.hotspots || []);
+      setPollutants(pollutantData);
+      setBriefing(briefingData);
 
       if (historyData?.city_id) {
         const pred = await getPrediction(historyData.city_id).catch(() => null);
@@ -112,6 +122,42 @@ export function HomeScreen({ navigation }: any) {
               </View>
             </GlassCard>
 
+            {briefing && briefing.available && (
+              <GlassCard style={styles.outlookCard} intensity={30}>
+                <View style={styles.outlookHeader}>
+                  <Feather name="zap" size={16} color={colors.signal} style={{ marginRight: 8 }} />
+                  <Text style={[typeScale.label, { color: colors.ink }]}>AI Briefing</Text>
+                </View>
+                <Text style={[typeScale.body, { color: colors.ink, marginTop: 4 }]}>{briefing.text}</Text>
+              </GlassCard>
+            )}
+
+            {pollutants && (
+              <GlassCard style={styles.outlookCard} intensity={30}>
+                <View style={styles.outlookHeader}>
+                  <Feather name="grid" size={16} color={colors.signal} style={{ marginRight: 8 }} />
+                  <Text style={[typeScale.label, { color: colors.ink }]}>Pollutant Breakdown</Text>
+                </View>
+                <View style={styles.pollutantGrid}>
+                  {[
+                    { label: 'PM2.5', value: pollutants.pm2_5 },
+                    { label: 'PM10', value: pollutants.pm10 },
+                    { label: 'NO2', value: pollutants.no2 },
+                    { label: 'SO2', value: pollutants.so2 },
+                    { label: 'O3', value: pollutants.o3 },
+                    { label: 'CO', value: pollutants.co },
+                  ].map((p) => (
+                    <View key={p.label} style={styles.pollutantItem}>
+                      <Text style={[typeScale.small, { color: colors.muted }]}>{p.label}</Text>
+                      <Text style={[typeScale.label, { color: colors.ink }]}>
+                        {p.value !== null ? p.value.toFixed(1) : '--'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </GlassCard>
+            )}
+
             {weather && (
               <View style={styles.weatherRow}>
                 <GlassCard style={styles.weatherCard} intensity={30}>
@@ -149,7 +195,10 @@ export function HomeScreen({ navigation }: any) {
               )}
               {prediction && prediction.prediction !== 'insufficient_data' && (
                 <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
-                  Forecast next reading: <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.ink }}>{prediction.forecast_next_reading}</Text>
+                  Forecast next reading:{' '}
+                  <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.ink }}>
+                    {prediction.forecast_next_reading}
+                  </Text>
                   {prediction.spike_warning ? ' · Spike expected' : ''}
                 </Text>
               )}
@@ -190,6 +239,8 @@ const styles = StyleSheet.create({
   iconBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: radius.md },
   gaugeCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginBottom: spacing.md },
   pollutantRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  pollutantGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.sm },
+  pollutantItem: { width: '28%' },
   weatherRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   weatherCard: { flex: 1, alignItems: 'flex-start' },
   outlookCard: { marginBottom: spacing.md },
