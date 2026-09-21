@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { CircularGauge } from '../components/CircularGauge';
 import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   getPrediction,
   getWeather,

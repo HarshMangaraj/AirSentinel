@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
-import { getCurrentAqi } from '../lib/api';
+import { getAqiHistory, getLatestCityAqi } from '../lib/api';
 import { getDeviceLocation } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
 import { type as typeScale, spacing, radius } from '../theme/tokens';
@@ -41,8 +41,12 @@ export function HealthSafetyScreen({ navigation }: any) {
     (async () => {
       const loc = await getDeviceLocation();
       const point = loc || { lat: 28.6139, lon: 77.209 };
-      const data = await getCurrentAqi(point.lat, point.lon).catch(() => null);
-      setAqi(data?.aqi ?? null);
+      // Use the same cached-per-city reading as Home, so numbers stay consistent app-wide
+      const history = await getAqiHistory(point.lat, point.lon).catch(() => null);
+      if (history?.city_id) {
+        const latest = await getLatestCityAqi(history.city_id).catch(() => null);
+        setAqi(latest?.aqi ?? null);
+      }
       setLoading(false);
     })();
   }, []);

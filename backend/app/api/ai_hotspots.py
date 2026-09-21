@@ -22,7 +22,7 @@ def ai_hotspots(db: Session = Depends(get_db)):
         )
         if reading:
             point = to_shape(city.location)
-            data.append({"city": city.name, "aqi": reading.aqi, "lat": point.y, "lon": point.x})
+            data.append({"city": city.name, "city_id": city.id, "aqi": reading.aqi, "lat": point.y, "lon": point.x})
 
     if len(data) < 4:
         return {"available": False, "reason": "Not enough cities with data yet.", "hotspots": []}
@@ -41,6 +41,7 @@ def ai_hotspots(db: Session = Depends(get_db)):
         if z >= 1.0 and d["aqi"] >= 100:
             results.append({
                 "city": d["city"],
+                "city_id": d["city_id"],
                 "aqi": d["aqi"],
                 "lat": d["lat"],
                 "lon": d["lon"],

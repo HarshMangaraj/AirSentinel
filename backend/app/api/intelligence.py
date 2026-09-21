@@ -16,22 +16,39 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
 
-_cached_model_name = None
+# Tried in order; first one that actually succeeds is used and cached.
+CANDIDATE_MODELS = [
+    "gemini-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash",
+    "gemini-pro-latest",
+    "gemini-1.5-pro",
+]
+
+_working_model_name = None
 
 
-def _pick_available_model():
-    global _cached_model_name
-    if _cached_model_name:
-        return _cached_model_name
-    for m in genai.list_models():
-        if "generateContent" in m.supported_generation_methods and "flash" in m.name.lower():
-            _cached_model_name = m.name
-            return m.name
-    for m in genai.list_models():
-        if "generateContent" in m.supported_generation_methods:
-            _cached_model_name = m.name
-            return m.name
-    raise RuntimeError("No usable Gemini model found for this API key")
+def _generate_with_fallback(prompt: str) -> str:
+    global _working_model_name
+    if _working_model_name:
+        try:
+            model = genai.GenerativeModel(_working_model_name)
+            return model.generate_content(prompt).text.strip()
+        except Exception:
+            _working_model_name = None  # cached one stopped working, re-discover
+
+    last_error = None
+    for name in CANDIDATE_MODELS:
+        try:
+            model = genai.GenerativeModel(name)
+            result = model.generate_content(prompt).text.strip()
+            _working_model_name = name
+            return result
+        except Exception as e:
+            last_error = e
+            continue
+    raise last_error or RuntimeError("No Gemini model available")
 
 
 @router.get("/briefing")
@@ -44,6 +61,7 @@ async def briefing(lat: float = Query(...), lon: float = Query(...), db: Session
     hotspots = ai_hotspots(db=db)
     attribution = get_attribution(city_id, db=db)
     prediction = predict_spike(city_id, db=db)
+    is_hotspot = any(h["city"] == history["city_name"] for h in hotspots["hotspots"])
 
     if not GEMINI_KEY:
         return {
@@ -51,12 +69,10 @@ async def briefing(lat: float = Query(...), lon: float = Query(...), db: Session
             "text": (
                 f"Current probable cause: {attribution['probable_cause']}. "
                 f"Trend: {prediction.get('trend_per_reading', 'N/A')} per reading. "
-                f"{'A statistical hotspot was detected nearby.' if any(h['city'] == history['city_name'] for h in hotspots['hotspots']) else 'No statistical anomaly detected nearby.'}"
+                f"{'A statistical hotspot was detected nearby.' if is_hotspot else 'No statistical anomaly detected nearby.'}"
             ),
             "source": "rule-based (Gemini key not configured)",
         }
-
-    is_hotspot = any(h["city"] == history["city_name"] for h in hotspots["hotspots"])
 
     prompt = f"""You are an air-quality analyst writing a short, plain-language briefing for a citizen app.
 Do not invent numbers. Use only the facts given below. Write 2-3 short sentences, no headers, no bullet points.
@@ -70,11 +86,7 @@ Probable pollution cause (rule-based on citizen reports + wind): {attribution['p
 """
 
     try:
-        model_name = await asyncio.to_thread(_pick_available_model)
-        model = genai.GenerativeModel(model_name)
-        response = await asyncio.to_thread(model.generate_content, prompt)
-        text = response.text.strip()
+        text = await asyncio.to_thread(_generate_with_fallback, prompt)
+        return {"available": True, "text": text, "source": _working_model_name}
     except Exception as e:
-        text = f"AI briefing unavailable right now ({str(e)[:80]})."
-
-    return {"available": True, "text": text, "source": "gemini"}
+        return {"available": True, "text": f"AI briefing unavailable right now ({str(e)[:100]}).", "source": "error"}

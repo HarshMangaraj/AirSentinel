@@ -9,6 +9,7 @@ import { EventDetailsScreen } from '../screens/EventDetailsScreen';
 import { ReportStatusScreen } from '../screens/ReportStatusScreen';
 import { HealthSafetyScreen } from '../screens/HealthSafetyScreen';
 import { MainTabs } from './MainTabs';
+import { HotspotDetailScreen } from '../screens/HotspotDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +34,7 @@ export function RootNavigator() {
             <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="ReportStatus" component={ReportStatusScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="HealthSafety" component={HealthSafetyScreen} options={{ presentation: 'modal' }} />
+            <Stack.Screen name="HotspotDetail" component={HotspotDetailScreen} options={{ presentation: 'modal' }} />
           </>
         ) : (
           <>
