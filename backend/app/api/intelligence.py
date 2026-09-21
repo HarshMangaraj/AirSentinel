@@ -1,4 +1,5 @@
 import os
+import asyncio
 import google.generativeai as genai
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
@@ -15,6 +16,23 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
 
+_cached_model_name = None
+
+
+def _pick_available_model():
+    global _cached_model_name
+    if _cached_model_name:
+        return _cached_model_name
+    for m in genai.list_models():
+        if "generateContent" in m.supported_generation_methods and "flash" in m.name.lower():
+            _cached_model_name = m.name
+            return m.name
+    for m in genai.list_models():
+        if "generateContent" in m.supported_generation_methods:
+            _cached_model_name = m.name
+            return m.name
+    raise RuntimeError("No usable Gemini model found for this API key")
+
 
 @router.get("/briefing")
 async def briefing(lat: float = Query(...), lon: float = Query(...), db: Session = Depends(get_db)):
@@ -28,7 +46,6 @@ async def briefing(lat: float = Query(...), lon: float = Query(...), db: Session
     prediction = predict_spike(city_id, db=db)
 
     if not GEMINI_KEY:
-        # Graceful fallback: real data, just without LLM prose
         return {
             "available": True,
             "text": (
@@ -53,10 +70,11 @@ Probable pollution cause (rule-based on citizen reports + wind): {attribution['p
 """
 
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content(prompt)
+        model_name = await asyncio.to_thread(_pick_available_model)
+        model = genai.GenerativeModel(model_name)
+        response = await asyncio.to_thread(model.generate_content, prompt)
         text = response.text.strip()
     except Exception as e:
         text = f"AI briefing unavailable right now ({str(e)[:80]})."
 
-    return {"available": True, "text": text, "source": "gemini-2.0-flash"}
+    return {"available": True, "text": text, "source": "gemini"}

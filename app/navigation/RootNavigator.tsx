@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { SignInScreen } from '../screens/SignInScreen';
 import { VerifyOtpScreen } from '../screens/VerifyOtpScreen';
+import { EventDetailsScreen } from '../screens/EventDetailsScreen';
+import { ReportStatusScreen } from '../screens/ReportStatusScreen';
+import { HealthSafetyScreen } from '../screens/HealthSafetyScreen';
 import { MainTabs } from './MainTabs';
 
 const Stack = createNativeStackNavigator();
@@ -25,7 +28,12 @@ export function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {session ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ presentation: 'modal' }} />
+            <Stack.Screen name="ReportStatus" component={ReportStatusScreen} options={{ presentation: 'modal' }} />
+            <Stack.Screen name="HealthSafety" component={HealthSafetyScreen} options={{ presentation: 'modal' }} />
+          </>
         ) : (
           <>
             <Stack.Screen name="SignIn" component={SignInScreen} />

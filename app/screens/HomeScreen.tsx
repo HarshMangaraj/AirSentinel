@@ -8,20 +8,19 @@ import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getCurrentAqi,
   getPrediction,
-  getCities,
   getWeather,
   getAqiHistory,
   getAiHotspots,
   getPollutants,
   getBriefing,
-  AqiReading,
+  getLatestCityAqi,
   Weather,
   AqiHistory,
   AiHotspot,
   Pollutants,
   Briefing,
+  LatestCityAqi,
 } from '../lib/api';
 import { getDeviceLocation, reverseGeocode } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
@@ -39,7 +38,7 @@ export function HomeScreen({ navigation }: any) {
   const { session } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
   const [locationLabel, setLocationLabel] = useState('Locating...');
-  const [aqi, setAqi] = useState<AqiReading | null>(null);
+  const [latestAqi, setLatestAqi] = useState<LatestCityAqi | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [history, setHistory] = useState<AqiHistory | null>(null);
   const [prediction, setPrediction] = useState<any>(null);
@@ -55,20 +54,25 @@ export function HomeScreen({ navigation }: any) {
       const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
       setLocationLabel(label);
 
-      const [aqiData, weatherData, historyData, hotspotData, pollutantData, briefingData] = await Promise.all([
-        getCurrentAqi(point.lat, point.lon).catch(() => null),
-        getWeather(point.lat, point.lon).catch(() => null),
-        getAqiHistory(point.lat, point.lon).catch(() => null),
-        getAiHotspots().catch(() => ({ available: false, hotspots: [] })),
-        getPollutants(point.lat, point.lon).catch(() => null),
-        getBriefing(point.lat, point.lon).catch(() => null),
-      ]);
-      setAqi(aqiData);
-      setWeather(weatherData);
+      // Get history first — this also tells us the nearest city_id,
+      // which lets everything else use the fast cached DB read instead of a live multi-source fetch.
+      const historyData = await getAqiHistory(point.lat, point.lon).catch(() => null);
       setHistory(historyData);
-      setAiHotspots(hotspotData?.hotspots || []);
-      setPollutants(pollutantData);
-      setBriefing(briefingData);
+
+      const results = await Promise.allSettled([
+        historyData?.city_id ? getLatestCityAqi(historyData.city_id) : Promise.resolve(null),
+        getWeather(point.lat, point.lon),
+        getAiHotspots(),
+        getPollutants(point.lat, point.lon),
+        historyData?.city_id ? getBriefing(point.lat, point.lon) : Promise.resolve(null),
+      ]);
+
+      const [latestRes, weatherRes, hotspotRes, pollutantRes, briefingRes] = results;
+      setLatestAqi(latestRes.status === 'fulfilled' ? (latestRes.value as LatestCityAqi | null) : null);
+      setWeather(weatherRes.status === 'fulfilled' ? (weatherRes.value as Weather) : null);
+      setAiHotspots(hotspotRes.status === 'fulfilled' ? (hotspotRes.value as any)?.hotspots || [] : []);
+      setPollutants(pollutantRes.status === 'fulfilled' ? (pollutantRes.value as Pollutants) : null);
+      setBriefing(briefingRes.status === 'fulfilled' ? (briefingRes.value as Briefing | null) : null);
 
       if (historyData?.city_id) {
         const pred = await getPrediction(historyData.city_id).catch(() => null);
@@ -78,9 +82,9 @@ export function HomeScreen({ navigation }: any) {
     })();
   }, []);
 
-  const activeColor = aqi ? aqiColorFor(colors, aqi.aqi) : colors.signal;
+  const currentAqiValue = latestAqi?.aqi ?? null;
+  const activeColor = aqiColorFor(colors, currentAqiValue);
   const greeting = session?.user.email?.split('@')[0] || 'there';
-  const pm25Source = aqi?.sources.find((s) => s.aqi !== null);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
@@ -106,16 +110,16 @@ export function HomeScreen({ navigation }: any) {
         ) : (
           <>
             <GlassCard style={styles.gaugeCard} intensity={45}>
-              <CircularGauge value={aqi?.aqi ?? null} color={activeColor} label={`AQI · ${aqiLabel(aqi?.aqi ?? null)}`} />
+              <CircularGauge value={currentAqiValue} color={activeColor} label={`AQI · ${aqiLabel(currentAqiValue)}`} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <View style={styles.pollutantRow}>
-                  <Text style={[typeScale.small, { color: colors.muted }]}>Top source</Text>
-                  <Text style={[typeScale.label, { color: colors.ink }]}>
-                    {pm25Source ? `${pm25Source.source}: ${pm25Source.aqi}` : '--'}
+                  <Text style={[typeScale.small, { color: colors.muted }]}>Station</Text>
+                  <Text style={[typeScale.label, { color: colors.ink }]} numberOfLines={1}>
+                    {latestAqi?.station || '--'}
                   </Text>
                 </View>
                 <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
-                  {aqi?.aqi && aqi.aqi <= 100
+                  {currentAqiValue !== null && currentAqiValue <= 100
                     ? 'Air conditions are suitable for most outdoor activities.'
                     : 'Consider limiting prolonged outdoor exposure.'}
                 </Text>
