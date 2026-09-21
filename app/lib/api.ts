@@ -1,6 +1,16 @@
 import { supabase } from './supabase';
+import Constants from 'expo-constants';
 
-const API_BASE = 'http://192.168.29.148:8000';
+function resolveApiBase(): string {
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    return `http://${host}:8000`;
+  }
+  return 'http://192.168.29.148:8000';
+}
+
+const API_BASE = resolveApiBase();
 
 async function authedFetch(path: string) {
   const { data } = await supabase.auth.getSession();
@@ -54,6 +64,17 @@ export function getCurrentAqi(lat: number, lon: number): Promise<AqiReading> {
   return authedFetch(`/aqi/current?lat=${lat}&lon=${lon}`);
 }
 
+export type LatestCityAqi = {
+  available: boolean;
+  aqi?: number;
+  station?: string;
+  recorded_at?: string | null;
+};
+
+export function getLatestCityAqi(cityId: string): Promise<LatestCityAqi> {
+  return authedFetch(`/aqi/latest/${cityId}`);
+}
+
 export type ReportInput = {
   description?: string;
   category?: string;
@@ -90,12 +111,17 @@ export type NearbyReport = {
   status_updated_at?: string | null;
   distance_km?: number;
 };
+
 export function getNearbyReports(lat: number, lon: number): Promise<NearbyReport[]> {
   return authedFetch(`/reports/nearby?lat=${lat}&lon=${lon}`);
 }
 
 export function getMyReports(): Promise<NearbyReport[]> {
   return authedFetch('/reports/mine');
+}
+
+export function getReport(id: string): Promise<NearbyReport> {
+  return authedFetch(`/reports/${id}`);
 }
 
 export type Alert = {
@@ -144,6 +170,18 @@ export function getHotspots(): Promise<{ threshold: number; hotspots: Hotspot[] 
   return authedFetch('/hotspots');
 }
 
+export type AiHotspot = {
+  city: string;
+  aqi: number;
+  lat: number;
+  lon: number;
+  anomaly_score: number;
+};
+
+export function getAiHotspots(): Promise<{ available: boolean; hotspots: AiHotspot[]; baseline_mean_aqi?: number }> {
+  return authedFetch('/hotspots/ai');
+}
+
 export type Weather = {
   temperature_c: number;
   humidity_pct: number;
@@ -162,8 +200,4 @@ export type AqiHistory = { available: boolean; city_id?: string; city_name?: str
 
 export function getAqiHistory(lat: number, lon: number): Promise<AqiHistory> {
   return authedFetch(`/aqi/history?lat=${lat}&lon=${lon}`);
-}
-
-export function getReport(id: string): Promise<NearbyReport & { category: string | null; status_updated_at: string | null }> {
-  return authedFetch(`/reports/${id}`);
 }

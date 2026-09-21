@@ -44,3 +44,21 @@ def aqi_history(lat: float = Query(...), lon: float = Query(...), db: Session = 
             for r in readings
         ],
     }
+
+
+@router.get("/latest/{city_id}")
+def latest_aqi(city_id: str, db: Session = Depends(get_db)):
+    reading = (
+        db.query(AQIReading)
+        .filter(AQIReading.city_id == city_id)
+        .order_by(AQIReading.recorded_at.desc())
+        .first()
+    )
+    if not reading:
+        return {"available": False}
+    return {
+        "available": True,
+        "aqi": reading.aqi,
+        "station": reading.station_name,
+        "recorded_at": reading.recorded_at.isoformat() if reading.recorded_at else None,
+    }

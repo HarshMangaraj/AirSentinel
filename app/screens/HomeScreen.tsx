@@ -7,7 +7,18 @@ import { CircularGauge } from '../components/CircularGauge';
 import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { getCurrentAqi, getPrediction, getCities, getWeather, getAqiHistory, AqiReading, Weather, AqiHistory } from '../lib/api';
+import {
+  getCurrentAqi,
+  getPrediction,
+  getCities,
+  getWeather,
+  getAqiHistory,
+  getAiHotspots,
+  AqiReading,
+  Weather,
+  AqiHistory,
+  AiHotspot,
+} from '../lib/api';
 import { getDeviceLocation, reverseGeocode } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
 import { spacing, type as typeScale, radius } from '../theme/tokens';
@@ -28,6 +39,7 @@ export function HomeScreen({ navigation }: any) {
   const [weather, setWeather] = useState<Weather | null>(null);
   const [history, setHistory] = useState<AqiHistory | null>(null);
   const [prediction, setPrediction] = useState<any>(null);
+  const [aiHotspots, setAiHotspots] = useState<AiHotspot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,15 +49,16 @@ export function HomeScreen({ navigation }: any) {
       const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
       setLocationLabel(label);
 
-      const [aqiData, weatherData, historyData, cities] = await Promise.all([
+      const [aqiData, weatherData, historyData, hotspotData] = await Promise.all([
         getCurrentAqi(point.lat, point.lon).catch(() => null),
         getWeather(point.lat, point.lon).catch(() => null),
         getAqiHistory(point.lat, point.lon).catch(() => null),
-        getCities().catch(() => []),
+        getAiHotspots().catch(() => ({ available: false, hotspots: [] })),
       ]);
       setAqi(aqiData);
       setWeather(weatherData);
       setHistory(historyData);
+      setAiHotspots(hotspotData?.hotspots || []);
 
       if (historyData?.city_id) {
         const pred = await getPrediction(historyData.city_id).catch(() => null);
@@ -141,6 +154,21 @@ export function HomeScreen({ navigation }: any) {
                 </Text>
               )}
             </GlassCard>
+
+            {aiHotspots.length > 0 && (
+              <GlassCard style={styles.outlookCard} intensity={30}>
+                <View style={styles.outlookHeader}>
+                  <Feather name="cpu" size={16} color={colors.danger} style={{ marginRight: 8 }} />
+                  <Text style={[typeScale.label, { color: colors.ink }]}>AI-Detected Hotspots</Text>
+                </View>
+                {aiHotspots.map((h) => (
+                  <Text key={h.city} style={[typeScale.small, { color: colors.muted, marginTop: 4 }]}>
+                    <Text style={{ color: colors.danger, fontFamily: 'Inter_600SemiBold' }}>{h.city}</Text>
+                    {' '}— AQI {h.aqi}, anomaly score {h.anomaly_score} (statistically abnormal vs. all monitored cities right now)
+                  </Text>
+                ))}
+              </GlassCard>
+            )}
 
             <Pressable onPress={() => navigation.navigate('Report')}>
               <View style={[styles.reportBtn, { backgroundColor: colors.signal }]}>

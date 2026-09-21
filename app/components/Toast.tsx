@@ -18,9 +18,10 @@ export function Toast({ message, visible }: { message: string; visible: boolean 
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.toast,
-        { backgroundColor: colors.signal, transform: [{ translateY }] },
+        { backgroundColor: colors.signal, transform: [{ translateY }], opacity: visible ? 1 : 0 },
       ]}
     >
       <Feather name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
