@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { GlassCard } from '../components/GlassCard';
 import { CircularGauge } from '../components/CircularGauge';
 import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   getPrediction,
   getWeather,
@@ -48,40 +48,43 @@ export function HomeScreen({ navigation }: any) {
   const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      const loc = await getDeviceLocation();
-      const point = loc || { lat: 28.6139, lon: 77.209 };
-      const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
-      setLocationLabel(label);
+  const loadHomeData = useCallback(async () => {
+    setLoading(true);
+    const loc = await getDeviceLocation();
+    const point = loc || { lat: 28.6139, lon: 77.209 };
+    const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
+    setLocationLabel(label);
 
-      // Get history first — this also tells us the nearest city_id,
-      // which lets everything else use the fast cached DB read instead of a live multi-source fetch.
-      const historyData = await getAqiHistory(point.lat, point.lon).catch(() => null);
-      setHistory(historyData);
+    const historyData = await getAqiHistory(point.lat, point.lon).catch(() => null);
+    setHistory(historyData);
 
-      const results = await Promise.allSettled([
-        historyData?.city_id ? getLatestCityAqi(historyData.city_id) : Promise.resolve(null),
-        getWeather(point.lat, point.lon),
-        getAiHotspots(),
-        getPollutants(point.lat, point.lon),
-        historyData?.city_id ? getBriefing(point.lat, point.lon) : Promise.resolve(null),
-      ]);
+    const results = await Promise.allSettled([
+      historyData?.city_id ? getLatestCityAqi(historyData.city_id) : Promise.resolve(null),
+      getWeather(point.lat, point.lon),
+      getAiHotspots(),
+      getPollutants(point.lat, point.lon),
+      historyData?.city_id ? getBriefing(point.lat, point.lon) : Promise.resolve(null),
+    ]);
 
-      const [latestRes, weatherRes, hotspotRes, pollutantRes, briefingRes] = results;
-      setLatestAqi(latestRes.status === 'fulfilled' ? (latestRes.value as LatestCityAqi | null) : null);
-      setWeather(weatherRes.status === 'fulfilled' ? (weatherRes.value as Weather) : null);
-      setAiHotspots(hotspotRes.status === 'fulfilled' ? (hotspotRes.value as any)?.hotspots || [] : []);
-      setPollutants(pollutantRes.status === 'fulfilled' ? (pollutantRes.value as Pollutants) : null);
-      setBriefing(briefingRes.status === 'fulfilled' ? (briefingRes.value as Briefing | null) : null);
+    const [latestRes, weatherRes, hotspotRes, pollutantRes, briefingRes] = results;
+    setLatestAqi(latestRes.status === 'fulfilled' ? (latestRes.value as LatestCityAqi | null) : null);
+    setWeather(weatherRes.status === 'fulfilled' ? (weatherRes.value as Weather) : null);
+    setAiHotspots(hotspotRes.status === 'fulfilled' ? (hotspotRes.value as any)?.hotspots || [] : []);
+    setPollutants(pollutantRes.status === 'fulfilled' ? (pollutantRes.value as Pollutants) : null);
+    setBriefing(briefingRes.status === 'fulfilled' ? (briefingRes.value as Briefing | null) : null);
 
-      if (historyData?.city_id) {
-        const pred = await getPrediction(historyData.city_id).catch(() => null);
-        setPrediction(pred);
-      }
-      setLoading(false);
-    })();
+    if (historyData?.city_id) {
+      const pred = await getPrediction(historyData.city_id).catch(() => null);
+      setPrediction(pred);
+    }
+    setLoading(false);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeData();
+    }, [loadHomeData])
+  );
 
   const currentAqiValue = latestAqi?.aqi ?? null;
   const activeColor = aqiColorFor(colors, currentAqiValue);
@@ -215,11 +218,28 @@ export function HomeScreen({ navigation }: any) {
                   <Feather name="cpu" size={16} color={colors.danger} style={{ marginRight: 8 }} />
                   <Text style={[typeScale.label, { color: colors.ink }]}>AI-Detected Hotspots</Text>
                 </View>
-                {aiHotspots.map((h) => (
-                  <Text key={h.city} style={[typeScale.small, { color: colors.muted, marginTop: 4 }]}>
-                    <Text style={{ color: colors.danger, fontFamily: 'Inter_600SemiBold' }}>{h.city}</Text>
-                    {' '}— AQI {h.aqi}, anomaly score {h.anomaly_score} (statistically abnormal vs. all monitored cities right now)
-                  </Text>
+                {aiHotspots.map((h: any) => (
+                  <Pressable
+                    key={h.city}
+                    onPress={() =>
+                      navigation.navigate('HotspotDetail', {
+                        city: h.city,
+                        cityId: h.city_id,
+                        aqi: h.aqi,
+                        lat: h.lat,
+                        lon: h.lon,
+                        anomalyScore: h.anomaly_score,
+                      })
+                    }
+                  >
+                    <View style={styles.hotspotRow}>
+                      <Text style={[typeScale.small, { color: colors.muted, flex: 1 }]}>
+                        <Text style={{ color: colors.danger, fontFamily: 'Inter_600SemiBold' }}>{h.city}</Text>
+                        {' '}— AQI {h.aqi}, score {h.anomaly_score}
+                      </Text>
+                      <Feather name="chevron-right" size={14} color={colors.muted} />
+                    </View>
+                  </Pressable>
                 ))}
               </GlassCard>
             )}
@@ -250,6 +270,7 @@ const styles = StyleSheet.create({
   weatherCard: { flex: 1, alignItems: 'flex-start' },
   outlookCard: { marginBottom: spacing.md },
   outlookHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  hotspotRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   reportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: radius.md },
   reportBtnText: { color: '#FFF', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });
