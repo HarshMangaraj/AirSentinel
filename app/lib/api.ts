@@ -221,3 +221,32 @@ export type Briefing = { available: boolean; text: string; source?: string };
 export function getBriefing(lat: number, lon: number): Promise<Briefing> {
   return authedFetch(`/intelligence/briefing?lat=${lat}&lon=${lon}`);
 }
+
+export type SavedLocation = { id: string; label: string; lat: number; lon: number };
+
+export function getSavedLocations(): Promise<SavedLocation[]> {
+  return authedFetch('/locations/mine');
+}
+
+export async function addSavedLocation(label: string, lat: number, lon: number) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_BASE}/locations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ label, lat, lon }),
+  });
+  if (!res.ok) throw new Error('Failed to save location');
+  return res.json();
+}
+
+export async function deleteSavedLocation(id: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_BASE}/locations/${id}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Failed to delete location');
+  return res.json();
+}
