@@ -131,3 +131,14 @@ class WeatherData(Base):
 
     recorded_at = Column(DateTime, nullable=False)
     ingested_at = Column(DateTime, default=datetime.utcnow)
+
+    
+class SavedLocation(Base):
+    __tablename__ = "saved_locations"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    user_id = Column(UUID(as_uuid=False), nullable=False)
+    label = Column(String, nullable=False)
+    lat = Column(Float, nullable=False)
+    lon = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
