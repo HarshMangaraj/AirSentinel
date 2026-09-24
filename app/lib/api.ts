@@ -1,16 +1,9 @@
 import { supabase } from './supabase';
 import Constants from 'expo-constants';
 
-function resolveApiBase(): string {
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    return `http://${host}:8000`;
-  }
-  return 'http://192.168.29.148:8000';
-}
+// Production Render API endpoint
+export const API_BASE = 'https://airsentinel-backend-dg7k.onrender.com';
 
-const API_BASE = resolveApiBase();
 
 async function authedFetch(path: string) {
   const { data } = await supabase.auth.getSession();
