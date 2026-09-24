@@ -1,18 +1,20 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "AirSentinel",
+    "slug": "airsentinel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.harshmangaraj.airsentinel",
       "infoPlist": {
-    "NSLocationWhenInUseUsageDescription": "AirSentinel uses your location to show air quality near you."
-  }
+        "NSLocationWhenInUseUsageDescription": "AirSentinel uses your location to show air quality near you."
+      }
     },
     "android": {
+      "package": "com.harshmangaraj.airsentinel",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
