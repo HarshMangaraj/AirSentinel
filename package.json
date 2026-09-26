@@ -1,8 +1,11 @@
 {
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.19.2",
     "@react-navigation/native": "^7.4.1",
+    "expo-file-system": "~57.0.7",
+    "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "^57.0.2",
     "react-native-gesture-handler": "^3.3.0",
     "react-native-safe-area-context": "^5.10.0",

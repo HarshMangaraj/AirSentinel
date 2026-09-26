@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
@@ -32,11 +32,17 @@ export function MapScreen({ navigation }: any) {
   const [locating, setLocating] = useState(false);
 
   useEffect(() => {
-    getCities().then((data) => {
-      setCities(data);
-      if (data.length > 0) setPoint({ lat: data[0].lat, lon: data[0].lon, label: data[0].name });
-      setLoading(false);
-    });
+    getCities()
+      .then((data) => {
+        setCities(data);
+        if (data.length > 0) setPoint({ lat: data[0].lat, lon: data[0].lon, label: data[0].name });
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+        Alert.alert('Data Error', 'Could not fetch cities data. Please try again later.');
+      });
   }, []);
 
   useEffect(() => {
@@ -48,23 +54,42 @@ export function MapScreen({ navigation }: any) {
 
   async function useMyLocation() {
     setLocating(true);
-    const loc = await getDeviceLocation();
-    if (loc) {
-      const label = await reverseGeocode(loc.lat, loc.lon);
-      setPoint({ lat: loc.lat, lon: loc.lon, label });
+    try {
+      const loc = await getDeviceLocation();
+      if (loc) {
+        const label = await reverseGeocode(loc.lat, loc.lon);
+        setPoint({ lat: loc.lat, lon: loc.lon, label });
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Location Error', 'Could not access your location. Please check permissions.');
     }
     setLocating(false);
   }
 
   async function handleMapPress(lat: number, lon: number) {
-    const label = await reverseGeocode(lat, lon);
-    setPoint({ lat, lon, label });
+    try {
+      const label = await reverseGeocode(lat, lon);
+      setPoint({ lat, lon, label });
+    } catch (err) {
+      setPoint({ lat, lon, label: 'Selected location' });
+    }
   }
 
   async function handleSearch() {
     if (!searchText.trim()) return;
-    const result = await searchPlace(searchText.trim());
-    if (result) { setPoint(result); setSearchText(''); }
+    try {
+      const result = await searchPlace(searchText.trim());
+      if (result) {
+        setPoint(result);
+        setSearchText('');
+      } else {
+        Alert.alert('Not Found', 'Could not find the specified place.');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Search Error', 'An error occurred while searching.');
+    }
   }
 
   const activeColor = aqi ? aqiColorFor(colors, aqi.aqi) : colors.signal;

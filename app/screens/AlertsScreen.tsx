@@ -4,11 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getAlerts, Alert } from '../lib/api';
 import { spacing, type as typeScale, radius } from '../theme/tokens';
 
-const TABS = ['All', 'Air Quality', 'Health', 'Reports'];
-const CATEGORY_MAP: Record<string, string> = { 'Air Quality': 'air_quality', Health: 'health', Reports: 'reports' };
+const CATEGORY_MAP: Record<string, string> = { air_quality: 'air_quality', health: 'health', reports: 'reports' };
 
 const ICONS: Record<string, { name: any; color: string }> = {
   high: { name: 'alert-triangle', color: '#B23A3A' },
@@ -19,9 +19,17 @@ const ICONS: Record<string, { name: any; color: string }> = {
 
 export function AlertsScreen() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState('all');
+
+  const TABS = [
+    { key: 'all', label: t.all },
+    { key: 'air_quality', label: t.airQuality },
+    { key: 'health', label: t.health },
+    { key: 'reports', label: t.reports },
+  ];
 
   useEffect(() => {
     getAlerts()
@@ -29,19 +37,19 @@ export function AlertsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = activeTab === 'All' ? alerts : alerts.filter((a) => a.category === CATEGORY_MAP[activeTab]);
+  const filtered = activeTab === 'all' ? alerts : alerts.filter((a) => a.category === activeTab);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
-      <Text style={[typeScale.title, { color: colors.ink, marginBottom: spacing.md }]}>Alerts</Text>
+      <Text style={[typeScale.title, { color: colors.ink, marginBottom: spacing.md }]}>{t.alerts}</Text>
 
       <View style={styles.tabRow}>
         {TABS.map((tab) => {
-          const active = tab === activeTab;
+          const active = tab.key === activeTab;
           return (
-            <Pressable key={tab} onPress={() => setActiveTab(tab)}>
+            <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)}>
               <View style={[styles.tab, active && { backgroundColor: colors.signal }]}>
-                <Text style={[typeScale.small, { color: active ? '#FFF' : colors.muted }]}>{tab}</Text>
+                <Text style={[typeScale.small, { color: active ? '#FFF' : colors.muted }]}>{tab.label}</Text>
               </View>
             </Pressable>
           );
@@ -52,7 +60,7 @@ export function AlertsScreen() {
         <ActivityIndicator color={colors.signal} style={{ marginTop: 40 }} />
       ) : filtered.length === 0 ? (
         <GlassCard style={styles.emptyCard} intensity={25}>
-          <Text style={[typeScale.body, { color: colors.muted, textAlign: 'center' }]}>No alerts right now.</Text>
+          <Text style={[typeScale.body, { color: colors.muted, textAlign: 'center' }]}>{t.noAlerts}</Text>
         </GlassCard>
       ) : (
         <FlatList
@@ -79,7 +87,7 @@ export function AlertsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: spacing.md },
-  tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' },
   tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.md, backgroundColor: 'rgba(0,0,0,0.05)' },
   emptyCard: { padding: spacing.xl },
   alertCard: { flexDirection: 'row', alignItems: 'flex-start' },
