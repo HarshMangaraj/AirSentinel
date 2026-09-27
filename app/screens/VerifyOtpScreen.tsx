@@ -5,7 +5,7 @@ import { TextField } from '../components/TextField';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
-import { type as typeScale, spacing } from '../theme/tokens';
+import { typography as typeScale, spacing } from '../theme/tokens';
 
 export function VerifyOtpScreen({ route }: any) {
   const { colors } = useTheme();

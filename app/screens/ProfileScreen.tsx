@@ -12,7 +12,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useProfilePhoto } from "../context/ProfilePhotoContext";
 import { getMyReports, NearbyReport } from "../lib/api";
-import { type as typeScale, spacing, radius } from "../theme/tokens";
+import { typography as typeScale, spacing, radius } from "../theme/tokens";
 
 type Screen = "profile" | "reports" | "settings" | "accountInfo" | "badges";
 const TEAL = "#10B981";
@@ -74,6 +74,7 @@ const lp = StyleSheet.create({
 
 export function ProfileScreen({ navigation }: any) {
   const { session, signOut } = useAuth();
+  const { profile } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const { photoUri, setPhotoUri } = useProfilePhoto();
@@ -84,14 +85,15 @@ export function ProfileScreen({ navigation }: any) {
   const [locationOn, setLocationOn] = useState(true);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
 
-  const reportsShared = reports.length;
-  const locationsMonitored = reportsShared > 0 ? Math.min(reportsShared + 3, 12) : 8;
-  const communityActions = Math.floor(reportsShared / 4) + 3;
+  const reportsShared = reports.length > 0 ? String(reports.length) : "--";
+  const locationsMonitored = reports.length > 0 ? String(Math.min(reports.length + 3, 12)) : "--";
+  const communityActions = reports.length > 0 ? String(Math.floor(reports.length / 4) + 3) : "--";
   const langLabel = language === "hi" ? "हिन्दी" : "English";
 
-  const displayName = session?.user.email?.split("@")[0]
-    ? session.user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
-    : "AirSentinel User";
+  const displayName = profile?.full_name ||
+    (session?.user.email?.split('@')[0]
+      ? session.user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : 'AirSentinel User');
 
   useEffect(() => {
     getMyReports().then(setReports).finally(() => setLoading(false));
@@ -370,9 +372,9 @@ export function ProfileScreen({ navigation }: any) {
         {/* Stats Row */}
         <View style={s.statsRow}>
           {[
-            { label: t.reportsShared, value: loading ? "—" : String(reportsShared) },
-            { label: t.locationsMonitored, value: loading ? "—" : String(locationsMonitored) },
-            { label: t.communityActions, value: loading ? "—" : String(communityActions) },
+            { label: t.reportsShared, value: loading ? "—" : reportsShared },
+            { label: t.locationsMonitored, value: loading ? "—" : locationsMonitored },
+            { label: t.communityActions, value: loading ? "—" : communityActions },
           ].map((stat) => (
             <GlassCard key={stat.label} style={s.statCard} intensity={20}>
               <Text style={[s.statNum, { color: colors.ink }]}>{stat.value}</Text>

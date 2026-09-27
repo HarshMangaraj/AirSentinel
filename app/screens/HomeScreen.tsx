@@ -234,7 +234,7 @@ const HealthTipsCarousel = () => {
   return (
     <View>
       <FlatList
-        ref={flatRef}  
+        ref={flatRef}
         data={HEALTH_TIPS}
         keyExtractor={(_, i) => String(i)}
         horizontal
@@ -444,6 +444,17 @@ export function HomeScreen({ navigation }: any) {
   }, []);
 
   const currentAqi = latestAqi?.aqi ?? 42;
+
+  function getAqiColors(aqi: number) {
+    if (aqi <= 50) return { bg: C.heroBg, bgDark: C.heroBgDark };
+    if (aqi <= 100) return { bg: '#F5A623', bgDark: '#D97706' };
+    if (aqi <= 150) return { bg: '#F97316', bgDark: '#C2410C' };
+    if (aqi <= 200) return { bg: '#EF4444', bgDark: '#B91C1C' };
+    if (aqi <= 300) return { bg: '#8B5CF6', bgDark: '#6D28D9' };
+    return { bg: '#831843', bgDark: '#4C0519' };
+  }
+
+  const aqiColors = getAqiColors(currentAqi);
   const username = session?.user.email?.split('@')[0] || 'User';
 
   const pollutantData = [
@@ -494,16 +505,16 @@ export function HomeScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* ── HERO AQI CARD (green with cityscape) ── */}
+          {/* ── HERO AQI CARD ── */}
           <View style={styles.heroCard}>
             <LinearGradient
-              colors={[C.heroBg, C.heroBgDark]}
+              colors={[aqiColors.bg, aqiColors.bgDark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
             <HeroCityscape />
-            <CircularGauge value={currentAqi} color={C.heroBg} />
+            <CircularGauge value={currentAqi} color={aqiColors.bg} />
             <View style={styles.heroStats}>
               <View style={styles.aqiGoodBadge}>
                 <View style={[styles.aqiBadgeDot, { backgroundColor: C.white }]} />

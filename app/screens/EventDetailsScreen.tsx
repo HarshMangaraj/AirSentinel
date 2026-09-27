@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
 import { getReport } from '../lib/api';
-import { type as typeScale, spacing, radius } from '../theme/tokens';
+import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 export function EventDetailsScreen({ route, navigation }: any) {
   const { id } = route.params;

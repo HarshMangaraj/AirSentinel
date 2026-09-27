@@ -24,7 +24,8 @@ export function LeafletMap({ lat, lon, aqi, aqiColor, station, isDark, reports =
     ? 'invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.5)'
     : 'grayscale(0.35) brightness(1.08) saturate(0.6) contrast(0.95)';
 
-  const reportMarkersJs = reports
+  const safeReports = Array.isArray(reports) ? reports : [];
+  const reportMarkersJs = safeReports
     .map((r) => {
       const desc = (r.description || 'Pollution report').replace(/'/g, "\\'").replace(/\n/g, ' ');
       const img = r.media_url

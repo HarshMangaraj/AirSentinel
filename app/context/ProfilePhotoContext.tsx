@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const PHOTO_KEY = 'profile_photo_uri';
 
@@ -17,7 +17,7 @@ export function ProfilePhotoProvider({ children }: { children: ReactNode }) {
   const [photoUri, setUri] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(PHOTO_KEY).then((val) => {
+    SecureStore.getItemAsync(PHOTO_KEY).then((val) => {
       if (val) setUri(val);
     });
   }, []);
@@ -25,9 +25,9 @@ export function ProfilePhotoProvider({ children }: { children: ReactNode }) {
   function setPhotoUri(uri: string | null) {
     setUri(uri);
     if (uri) {
-      AsyncStorage.setItem(PHOTO_KEY, uri);
+      SecureStore.setItemAsync(PHOTO_KEY, uri);
     } else {
-      AsyncStorage.removeItem(PHOTO_KEY);
+      SecureStore.deleteItemAsync(PHOTO_KEY);
     }
   }
 

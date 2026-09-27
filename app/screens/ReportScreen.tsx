@@ -15,7 +15,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { uploadReportImage } from "../lib/storage";
 import { submitReport, getMyReports, NearbyReport } from "../lib/api";
 import { getDeviceLocation, reverseGeocode } from "../lib/location";
-import { type as typeScale, spacing, radius } from "../theme/tokens";
+import { typography as typeScale, spacing, radius } from "../theme/tokens";
 
 const CATEGORIES = ["Smoke", "Road Dust", "Waste Burning", "Industrial Emission", "Other"];
 const TEAL = "#10B981";

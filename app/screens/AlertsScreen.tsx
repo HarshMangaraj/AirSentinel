@@ -6,7 +6,7 @@ import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getAlerts, Alert } from '../lib/api';
-import { spacing, type as typeScale, radius } from '../theme/tokens';
+import { spacing, typography as typeScale, radius } from '../theme/tokens';
 
 const CATEGORY_MAP: Record<string, string> = { air_quality: 'air_quality', health: 'health', reports: 'reports' };
 
@@ -33,11 +33,18 @@ export function AlertsScreen() {
 
   useEffect(() => {
     getAlerts()
-      .then((data) => setAlerts(data.alerts))
+      .then((data: any) => {
+        setAlerts(data?.alerts || (Array.isArray(data) ? data : []));
+      })
+      .catch((err) => {
+        console.error('Failed to fetch alerts', err);
+        setAlerts([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = activeTab === 'all' ? alerts : alerts.filter((a) => a.category === activeTab);
+  const safeAlerts = alerts || [];
+  const filtered = activeTab === 'all' ? safeAlerts : safeAlerts.filter((a) => a.category === activeTab);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>

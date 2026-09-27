@@ -1,6 +1,6 @@
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
 
-export const type = {
+export const typography = {
   hero: { fontSize: 34, fontFamily: 'Inter_700Bold', lineHeight: 40, letterSpacing: -1 },
   title: { fontSize: 24, fontFamily: 'Inter_700Bold', lineHeight: 30, letterSpacing: -0.5 },
   body: { fontSize: 16, fontFamily: 'Inter_400Regular', lineHeight: 24 },
