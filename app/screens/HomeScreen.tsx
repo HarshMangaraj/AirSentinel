@@ -26,6 +26,14 @@ import Svg, {
   Ellipse,
 } from 'react-native-svg';
 
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { GlassCard } from '../components/GlassCard';
+import { CircularGauge } from '../components/CircularGauge';
+import { TrendChart } from '../components/TrendChart';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -474,6 +482,47 @@ export function HomeScreen({ navigation }: any) {
       </View>
     );
   }
+  const loadHomeData = useCallback(async () => {
+    setLoading(true);
+    const loc = await getDeviceLocation();
+    const point = loc || { lat: 28.6139, lon: 77.209 };
+    const label = loc ? await reverseGeocode(loc.lat, loc.lon) : 'Delhi';
+    setLocationLabel(label);
+
+    const historyData = await getAqiHistory(point.lat, point.lon).catch(() => null);
+    setHistory(historyData);
+
+    const results = await Promise.allSettled([
+      historyData?.city_id ? getLatestCityAqi(historyData.city_id) : Promise.resolve(null),
+      getWeather(point.lat, point.lon),
+      getAiHotspots(),
+      getPollutants(point.lat, point.lon),
+      historyData?.city_id ? getBriefing(point.lat, point.lon) : Promise.resolve(null),
+    ]);
+
+    const [latestRes, weatherRes, hotspotRes, pollutantRes, briefingRes] = results;
+    setLatestAqi(latestRes.status === 'fulfilled' ? (latestRes.value as LatestCityAqi | null) : null);
+    setWeather(weatherRes.status === 'fulfilled' ? (weatherRes.value as Weather) : null);
+    setAiHotspots(hotspotRes.status === 'fulfilled' ? (hotspotRes.value as any)?.hotspots || [] : []);
+    setPollutants(pollutantRes.status === 'fulfilled' ? (pollutantRes.value as Pollutants) : null);
+    setBriefing(briefingRes.status === 'fulfilled' ? (briefingRes.value as Briefing | null) : null);
+
+    if (historyData?.city_id) {
+      const pred = await getPrediction(historyData.city_id).catch(() => null);
+      setPrediction(pred);
+    }
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeData();
+    }, [loadHomeData])
+  );
+
+  const currentAqiValue = latestAqi?.aqi ?? null;
+  const activeColor = aqiColorFor(colors, currentAqiValue);
+  const greeting = session?.user.email?.split('@')[0] || 'there';
 
   return (
     <View style={styles.container}>
@@ -695,6 +744,54 @@ export function HomeScreen({ navigation }: any) {
               })
             ) : (
               <Text style={{ color: C.mutedDark, fontSize: 12 }}>No nearby station data available.</Text>
+              {history && history.available ? (
+                <TrendChart readings={history.readings} color={colors.signal} mutedColor={colors.muted} width={300} height={100} />
+              ) : (
+                <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
+                  Not enough historical data yet — check back after a few ingestion cycles.
+                </Text>
+              )}
+              {prediction && prediction.prediction !== 'insufficient_data' && (
+                <Text style={[typeScale.small, { color: colors.muted, marginTop: spacing.sm }]}>
+                  Forecast next reading:{' '}
+                  <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.ink }}>
+                    {prediction.forecast_next_reading}
+                  </Text>
+                  {prediction.spike_warning ? ' · Spike expected' : ''}
+                </Text>
+              )}
+            </GlassCard>
+
+            {aiHotspots.length > 0 && (
+              <GlassCard style={styles.outlookCard} intensity={30}>
+                <View style={styles.outlookHeader}>
+                  <Feather name="cpu" size={16} color={colors.danger} style={{ marginRight: 8 }} />
+                  <Text style={[typeScale.label, { color: colors.ink }]}>AI-Detected Hotspots</Text>
+                </View>
+                {aiHotspots.map((h: any) => (
+                  <Pressable
+                    key={h.city}
+                    onPress={() =>
+                      navigation.navigate('HotspotDetail', {
+                        city: h.city,
+                        cityId: h.city_id,
+                        aqi: h.aqi,
+                        lat: h.lat,
+                        lon: h.lon,
+                        anomalyScore: h.anomaly_score,
+                      })
+                    }
+                  >
+                    <View style={styles.hotspotRow}>
+                      <Text style={[typeScale.small, { color: colors.muted, flex: 1 }]}>
+                        <Text style={{ color: colors.danger, fontFamily: 'Inter_600SemiBold' }}>{h.city}</Text>
+                        {' '}— AQI {h.aqi}, score {h.anomaly_score}
+                      </Text>
+                      <Feather name="chevron-right" size={14} color={colors.muted} />
+                    </View>
+                  </Pressable>
+                ))}
+              </GlassCard>
             )}
           </View>
 
@@ -829,4 +926,20 @@ const styles = StyleSheet.create({
   pulseContainer: { position: 'absolute', top: 9, right: 9, width: 10, height: 10 },
   pulseRing: { position: 'absolute', width: 10, height: 10, borderRadius: 5, backgroundColor: C.red, opacity: 0.3 },
   pulseCore: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.red, borderWidth: 1.5, borderColor: '#FFF' },
+});
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md },
+  locRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  iconBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: radius.md },
+  gaugeCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginBottom: spacing.md },
+  pollutantRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  pollutantGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.sm },
+  pollutantItem: { width: '28%' },
+  weatherRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  weatherCard: { flex: 1, alignItems: 'flex-start' },
+  outlookCard: { marginBottom: spacing.md },
+  outlookHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  hotspotRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  reportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: radius.md },
+  reportBtnText: { color: '#FFF', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });

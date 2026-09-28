@@ -8,8 +8,7 @@ from app.core.auth import get_current_user, require_admin
 from app.models.models import User
 from app.api import cities, aqi, reports
 from app.jobs.ingest import run_all_ingestion
-from app.api import cities, aqi, reports, hotspots, predictions, attribution, alerts, weather, history, ai_hotspots, pollutants, intelligence
-
+from app.api import cities, aqi, reports, hotspots, predictions, attribution, alerts, weather, history, ai_hotspots, pollutants, intelligence, locations
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="AirSentinel API", version="0.1.0")
@@ -33,6 +32,7 @@ app.include_router(history.router)
 app.include_router(ai_hotspots.router)
 app.include_router(pollutants.router)
 app.include_router(intelligence.router)
+app.include_router(locations.router)
 
 scheduler = AsyncIOScheduler()
 

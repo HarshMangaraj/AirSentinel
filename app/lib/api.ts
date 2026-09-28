@@ -1,16 +1,9 @@
 import { supabase } from './supabase';
 import Constants from 'expo-constants';
 
-function resolveApiBase(): string {
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    return `http://${host}:8000`;
-  }
-  return 'http://192.168.29.148:8000';
-}
+// Production Render API endpoint
+export const API_BASE = 'https://airsentinel-backend-dg7k.onrender.com';
 
-const API_BASE = resolveApiBase();
 
 async function authedFetch(path: string) {
   const { data } = await supabase.auth.getSession();
@@ -323,4 +316,33 @@ export type Briefing = { available: boolean; text: string; source?: string };
 
 export function getBriefing(lat: number, lon: number): Promise<Briefing> {
   return authedFetch(`/intelligence/briefing?lat=${lat}&lon=${lon}`);
+}
+
+export type SavedLocation = { id: string; label: string; lat: number; lon: number };
+
+export function getSavedLocations(): Promise<SavedLocation[]> {
+  return authedFetch('/locations/mine');
+}
+
+export async function addSavedLocation(label: string, lat: number, lon: number) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_BASE}/locations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ label, lat, lon }),
+  });
+  if (!res.ok) throw new Error('Failed to save location');
+  return res.json();
+}
+
+export async function deleteSavedLocation(id: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_BASE}/locations/${id}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Failed to delete location');
+  return res.json();
 }
