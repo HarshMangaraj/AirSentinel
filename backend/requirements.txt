@@ -1,4 +1,14 @@
 fastapi
+uvicorn
+sqlalchemy
+geoalchemy2
+psycopg2-binary
+pg8000
+pyjwt
+requests
+python-dotenv
+apscheduler
+fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings

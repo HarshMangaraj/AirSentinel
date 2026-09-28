@@ -1,6 +1,6 @@
 import { Pressable, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { type as typeScale, radius } from '../theme/tokens';
+import { typography as typeScale, radius } from '../theme/tokens';
 
 type Props = {
   label: string;

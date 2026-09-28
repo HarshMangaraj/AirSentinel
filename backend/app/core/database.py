@@ -1,14 +1,17 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-load_dotenv()
+# .env file aapki exact backend/.env path par hai
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. Check your .env file.")
+    raise RuntimeError(f"DATABASE_URL is not set. Checked exact path: {env_path}")
 
 # Use the pure-Python pg8000 driver instead of psycopg2 — psycopg2's compiled
 # C extension gets blocked by Windows Smart App Control on this machine.

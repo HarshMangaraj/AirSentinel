@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { type as typeScale } from '../theme/tokens';
+import { typography as typeScale } from '../theme/tokens';
 
 type Props = {
   value: number | null;

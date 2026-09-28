@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline, Circle, Line } from 'react-native-svg';
 import { AqiHistoryPoint } from '../lib/api';
-import { type as typeScale } from '../theme/tokens';
+import { typography as typeScale } from '../theme/tokens';
 
 type Props = {
   readings: AqiHistoryPoint[];

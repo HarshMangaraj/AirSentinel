@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { getReport } from '../lib/api';
-import { type as typeScale, spacing, radius } from '../theme/tokens';
+import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 const STAGES = ['pending', 'reviewed', 'verified', 'dismissed'];
 const STAGE_LABELS: Record<string, string> = {

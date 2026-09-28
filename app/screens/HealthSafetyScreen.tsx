@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getAqiHistory, getLatestCityAqi } from '../lib/api';
 import { getDeviceLocation } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
-import { type as typeScale, spacing, radius } from '../theme/tokens';
+import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 function tipsForAqi(aqi: number | null) {
   if (aqi === null) return [];

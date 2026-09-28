@@ -1,6 +1,6 @@
 import { TextInput, View, Text, StyleSheet, TextInputProps } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { type as typeScale, spacing, radius } from '../theme/tokens';
+import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 type Props = TextInputProps & { label: string; error?: string };
 

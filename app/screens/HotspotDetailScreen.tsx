@@ -6,7 +6,7 @@ import { GlassCard } from '../components/GlassCard';
 import { LeafletMap } from '../components/LeafletMap';
 import { useTheme } from '../context/ThemeContext';
 import { getAttribution, getPrediction, Attribution, Prediction } from '../lib/api';
-import { type as typeScale, spacing, radius } from '../theme/tokens';
+import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 export function HotspotDetailScreen({ route, navigation }: any) {
   const { city, cityId, aqi, lat, lon, anomalyScore } = route.params;
