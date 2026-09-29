@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "b9611114-66c4-494c-9a4c-eb13a24850df"
+      }
+    },
+    "android": {
+      "package": "com.harshmangaraj.airsentinel"
+    }
+  }
+}
