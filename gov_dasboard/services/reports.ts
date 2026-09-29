@@ -190,12 +190,14 @@ export const reportsService = {
   ): Promise<PollutionReport> => {
     const oldStatus = cachedMergedReports.find((r) => r.id === id)?.status || 'Pending';
 
-    // Sync status back to backend
+    // Sync status back to backend using valid DB enum values:
+    // "pending" | "reviewed" | "verified" | "dismissed"
     try {
       const backendStatus =
-        status === 'Resolved' ? 'resolved'
-        : status === 'In Progress' ? 'investigating'
-        : status === 'Rejected' ? 'rejected'
+        status === 'Resolved'    ? 'verified'
+        : status === 'In Progress' ? 'reviewed'
+        : status === 'Assigned'    ? 'reviewed'
+        : status === 'Rejected'    ? 'dismissed'
         : 'pending';
       await fetchFromBackend(`/reports/${id}`, {
         method: 'PATCH',

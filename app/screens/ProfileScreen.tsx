@@ -12,6 +12,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useProfilePhoto } from "../context/ProfilePhotoContext";
 import { getMyReports, NearbyReport } from "../lib/api";
+import { supabase } from "../lib/supabase";
 import { typography as typeScale, spacing, radius } from "../theme/tokens";
 
 type Screen = "profile" | "reports" | "settings" | "accountInfo" | "badges";
@@ -84,6 +85,32 @@ export function ProfileScreen({ navigation }: any) {
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [locationOn, setLocationOn] = useState(true);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
+  // Latest status per report from Supabase (overrides backend status)
+  const [latestStatuses, setLatestStatuses] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getMyReports().then(setReports).finally(() => setLoading(false));
+  }, []);
+
+  // Once reports load, fetch latest status from Supabase for each
+  useEffect(() => {
+    if (reports.length === 0) return;
+    const ids = reports.map(r => r.id);
+    supabase
+      .from('report_status_updates')
+      .select('report_id, new_status, created_at')
+      .in('report_id', ids)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        // Keep only the most recent update per report
+        const map: Record<string, string> = {};
+        data.forEach(row => {
+          if (!map[row.report_id]) map[row.report_id] = row.new_status;
+        });
+        setLatestStatuses(map);
+      });
+  }, [reports]);
 
   const reportsShared = reports.length > 0 ? String(reports.length) : "--";
   const locationsMonitored = reports.length > 0 ? String(Math.min(reports.length + 3, 12)) : "--";
@@ -94,10 +121,6 @@ export function ProfileScreen({ navigation }: any) {
     (session?.user.email?.split('@')[0]
       ? session.user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
       : 'AirSentinel User');
-
-  useEffect(() => {
-    getMyReports().then(setReports).finally(() => setLoading(false));
-  }, []);
 
   async function pickPhoto() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -219,18 +242,34 @@ export function ProfileScreen({ navigation }: any) {
             ? <ActivityIndicator color={TEAL} style={{ marginTop: 40 }} />
             : reports.length === 0
               ? <GlassCard style={{ padding: spacing.lg }} intensity={25}><Text style={[typeScale.body, { color: colors.muted, textAlign: "center" }]}>{t.noReports}</Text></GlassCard>
-              : reports.map((r) => (
-                  <AnimatedPress key={r.id} onPress={() => navigation.getParent()?.navigate("ReportStatus", { id: r.id })}>
-                    <GlassCard style={s.reportRow} intensity={25}>
-                      <View style={[s.reportDot, { backgroundColor: r.status === "resolved" ? TEAL : r.status === "in_progress" ? "#F59E0B" : "#64748B" }]} />
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[typeScale.label, { color: colors.ink }]}>{r.category || r.description || "Pollution report"}</Text>
-                        <Text style={[typeScale.small, { color: colors.muted, marginTop: 2 }]}>{r.status?.replace("_", " ")} · {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}</Text>
-                      </View>
-                      <Feather name="chevron-right" size={16} color={colors.muted} />
-                    </GlassCard>
-                  </AnimatedPress>
-                ))}
+              : reports.map((r) => {
+                  const raw = (latestStatuses[r.id] || r.status || 'pending').toLowerCase().replace(/ /g, '_');
+                  const dotColor =
+                    raw === 'resolved' || raw === 'verified'      ? '#10B981'
+                    : raw === 'in_progress' || raw === 'reviewed'  ? '#F59E0B'
+                    : raw === 'assigned'                           ? '#6366F1'
+                    : '#64748B';
+                  const statusLabel =
+                    raw === 'resolved' || raw === 'verified'      ? 'Resolved ✓'
+                    : raw === 'in_progress' || raw === 'reviewed'  ? 'In Progress'
+                    : raw === 'assigned'                           ? 'Assigned'
+                    : raw === 'dismissed'                          ? 'Dismissed'
+                    : 'Pending';
+                  return (
+                    <AnimatedPress key={r.id} onPress={() => navigation.getParent()?.navigate("ReportStatus", { id: r.id })}>
+                      <GlassCard style={s.reportRow} intensity={25}>
+                        <View style={[s.reportDot, { backgroundColor: dotColor }]} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={[typeScale.label, { color: colors.ink }]}>{r.category || r.description || "Pollution report"}</Text>
+                          <Text style={[typeScale.small, { color: dotColor, marginTop: 2, fontWeight: '600' }]}>
+                            {statusLabel} · {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
+                          </Text>
+                        </View>
+                        <Feather name="chevron-right" size={16} color={colors.muted} />
+                      </GlassCard>
+                    </AnimatedPress>
+                  );
+                })}
         </ScrollView>
       </SafeAreaView>
     );
