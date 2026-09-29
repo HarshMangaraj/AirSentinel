@@ -87,7 +87,7 @@ export const QuickActions: React.FC = () => {
       </View>
 
       {/* Grid of 4 Action Cards */}
-      <View className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <View className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {actions.map((act) => {
           const Icon = act.icon;
           const allowed = hasPermission(act.permission);
