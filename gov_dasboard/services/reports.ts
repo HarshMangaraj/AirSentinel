@@ -92,7 +92,7 @@ function mapBackendReport(r: BackendReport): PollutionReport {
   };
 }
 
-let cachedMergedReports: PollutionReport[] = [...MOCK_REPORTS];
+let cachedMergedReports: PollutionReport[] = [];
 
 export const reportsService = {
   getReports: async (filters?: {
@@ -104,14 +104,10 @@ export const reportsService = {
     try {
       const data = await fetchFromBackend<{ reports: BackendReport[] }>('/reports');
       if (data && Array.isArray(data.reports) && data.reports.length > 0) {
-        const liveReports = data.reports.map(mapBackendReport);
-        // Deduplicate against mock reports
-        const liveIds = new Set(liveReports.map((r) => r.id));
-        const filteredMocks = MOCK_REPORTS.filter((m) => !liveIds.has(m.id));
-        cachedMergedReports = [...liveReports, ...filteredMocks];
+        cachedMergedReports = data.reports.map(mapBackendReport);
       }
     } catch (e) {
-      console.warn('Backend fetch /reports failed, using local/cached reports:', e);
+      console.warn('Backend fetch /reports failed:', e);
     }
 
     let results = [...cachedMergedReports];

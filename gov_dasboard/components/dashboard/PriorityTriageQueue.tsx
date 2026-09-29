@@ -171,6 +171,12 @@ export const PriorityTriageQueue: React.FC = () => {
                     <Text className="text-slate-500 text-[11px]">• {report.timestamp}</Text>
                   </View>
 
+                  {report.description && (
+                    <Text className="text-slate-300 text-xs mb-2 leading-4" numberOfLines={2}>
+                      {report.description}
+                    </Text>
+                  )}
+
                   <View className="flex-row items-center justify-between pt-2 border-t border-slate-800/80">
                     <TouchableOpacity
                       onPress={() => setSelectedReport(report)}

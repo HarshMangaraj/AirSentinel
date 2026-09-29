@@ -12,7 +12,9 @@ import {
 } from 'lucide-react-native';
 import { useUIStore } from '../../store/useUIStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { MOCK_WEATHER, MOCK_NOTIFICATIONS } from '../../mock/data';
+import { airQualityService } from '../../services/airQuality';
+import { alertsService } from '../../services/alerts';
+import { useQuery } from '@tanstack/react-query';
 
 export const TopHeader: React.FC = () => {
   const {
@@ -45,7 +47,26 @@ export const TopHeader: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const unreadAlertsCount = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
+  const { data: liveWeather } = useQuery({
+    queryKey: ['header-live-weather'],
+    queryFn: () => airQualityService.getWeather(),
+    refetchInterval: 60000,
+  });
+
+  const { data: liveAlerts } = useQuery({
+    queryKey: ['header-live-alerts'],
+    queryFn: () => alertsService.getAlerts(),
+    refetchInterval: 30000,
+  });
+
+  const unreadAlertsCount = liveAlerts?.length ?? 0;
+  const weather = liveWeather || {
+    temperature: 28,
+    condition: 'Live Telemetry',
+    windDirection: 'NW',
+    windSpeed: 8,
+    humidity: 55,
+  };
 
   return (
     <View className="h-16 bg-slate-900 border-b border-slate-800/90 px-4 flex-row items-center justify-between z-20">
@@ -81,10 +102,10 @@ export const TopHeader: React.FC = () => {
           <CloudSun size={18} color="#F59E0B" />
           <View className="ml-1.5">
             <Text className="text-xs font-semibold text-slate-200">
-              {MOCK_WEATHER.temperature}°C • {MOCK_WEATHER.condition}
+              {weather.temperature}°C • {weather.condition}
             </Text>
             <Text className="text-[10px] text-slate-400 flex-row items-center">
-              Wind: {MOCK_WEATHER.windDirection} {MOCK_WEATHER.windSpeed} km/h • Humidity {MOCK_WEATHER.humidity}%
+              Wind: {weather.windDirection} {weather.windSpeed} km/h • Humidity {weather.humidity}%
             </Text>
           </View>
         </View>

@@ -55,7 +55,7 @@ function mapBackendAlert(b: BackendAlert, index: number): PollutionAlert {
   };
 }
 
-let cachedAlerts: PollutionAlert[] = [...MOCK_ALERTS];
+let cachedAlerts: PollutionAlert[] = [];
 
 export const alertsService = {
   getAlerts: async (filters?: {
@@ -67,13 +67,10 @@ export const alertsService = {
     try {
       const data = await fetchFromBackend<{ alerts: BackendAlert[] }>('/alerts');
       if (data && Array.isArray(data.alerts) && data.alerts.length > 0) {
-        const live = data.alerts.map(mapBackendAlert);
-        const liveIds = new Set(live.map((a) => a.id));
-        const filteredMocks = MOCK_ALERTS.filter((m) => !liveIds.has(m.id));
-        cachedAlerts = [...live, ...filteredMocks];
+        cachedAlerts = data.alerts.map(mapBackendAlert);
       }
     } catch (e) {
-      console.warn('Failed to fetch backend /alerts, using cache/mock:', e);
+      console.warn('Backend fetch /alerts failed:', e);
     }
 
     let results = [...cachedAlerts];

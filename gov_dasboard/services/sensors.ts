@@ -2,7 +2,7 @@ import { Sensor, HotspotPrediction, AQICategory, SensorStatus } from '../types';
 import { MOCK_SENSORS, MOCK_HOTSPOT_PREDICTIONS } from '../mock/data';
 import { fetchFromBackend } from './apiConfig';
 
-let sensorsDatabase = [...MOCK_SENSORS];
+let sensorsDatabase: Sensor[] = [];
 
 interface BackendCity {
   id: string;
@@ -73,12 +73,10 @@ async function loadLiveSensors(): Promise<Sensor[]> {
         };
       });
 
-      // Merge: live sensors + mock sensors that don't overlap by location
-      const mockSensors = MOCK_SENSORS.filter((m) => !liveIds.has(m.id));
-      sensorsDatabase = [...liveSensors, ...mockSensors];
+      sensorsDatabase = [...liveSensors];
     }
   } catch (e) {
-    // Fallback to existing/mock data
+    console.warn('Live sensors fetch error:', e);
   }
 
   return [...sensorsDatabase];

@@ -87,22 +87,31 @@ export const KpiCards: React.FC = () => {
           <TouchableOpacity
             key={idx}
             onPress={() => router.push(card.route as any)}
-            className={`p-4 bg-slate-900/90 border ${card.borderColor} rounded-2xl shadow-lg relative overflow-hidden group hover:scale-[1.01] transition-transform`}
+            className={`p-4 bg-gradient-to-b from-slate-900/90 to-slate-950/90 border ${card.borderColor} rounded-2xl shadow-xl relative overflow-hidden group hover:scale-[1.01] transition-transform`}
           >
+            {/* Top ambient glow bar */}
+            <View
+              className="absolute top-0 left-0 right-0 h-1 opacity-70"
+              style={{ backgroundColor: card.color }}
+            />
+
             <View className="flex-row items-center justify-between">
-              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+              <Text className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
                 {card.title}
               </Text>
               <View
-                className="w-9 h-9 rounded-xl items-center justify-center"
-                style={{ backgroundColor: `${card.color}20` }}
+                className="w-8 h-8 rounded-xl items-center justify-center border"
+                style={{
+                  backgroundColor: `${card.color}15`,
+                  borderColor: `${card.color}35`,
+                }}
               >
-                <Icon size={18} color={card.color} strokeWidth={2.2} />
+                <Icon size={16} color={card.color} strokeWidth={2.2} />
               </View>
             </View>
 
-            <View className="mt-3">
-              <Text className="text-white text-3xl font-extrabold tracking-tight">
+            <View className="mt-2.5">
+              <Text className="text-white text-3xl font-black tracking-tight">
                 {card.value}
               </Text>
               <View className="flex-row items-center mt-1.5 space-x-1">
@@ -117,7 +126,7 @@ export const KpiCards: React.FC = () => {
               </View>
             </View>
 
-            <View className="absolute bottom-2 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <View className="absolute bottom-2.5 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <ArrowUpRight size={14} color="#94A3B8" />
             </View>
           </TouchableOpacity>
