@@ -1,6 +1,38 @@
 import { PollutionReport, ReportStatus, ReportType } from '../types';
 import { MOCK_REPORTS } from '../mock/data';
-import { fetchFromBackend } from './apiConfig';
+import { fetchFromBackend, SUPABASE_URL, SUPABASE_KEY } from './apiConfig';
+
+/** Write a status-change event to Supabase so mobile app gets real-time updates. */
+async function pushStatusUpdate(
+  reportId: string,
+  oldStatus: string,
+  newStatus: string,
+  updatedBy: string,
+  assignedTo?: string,
+  notes?: string
+) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/report_status_updates`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        report_id: reportId,
+        old_status: oldStatus,
+        new_status: newStatus,
+        assigned_to: assignedTo || null,
+        admin_notes: notes || null,
+        updated_by: updatedBy,
+      }),
+    });
+  } catch (e) {
+    console.warn('Failed to push status update to Supabase:', e);
+  }
+}
 
 interface BackendReport {
   id: string;
@@ -156,24 +188,28 @@ export const reportsService = {
     actor: string,
     notes?: string
   ): Promise<PollutionReport> => {
-    // Sync status back to backend API if it's a backend report
+    const oldStatus = cachedMergedReports.find((r) => r.id === id)?.status || 'Pending';
+
+    // Sync status back to backend
     try {
-      const backendStatus = status === 'Resolved' ? 'resolved' : status === 'In Progress' ? 'investigating' : status === 'Rejected' ? 'rejected' : 'pending';
+      const backendStatus =
+        status === 'Resolved' ? 'resolved'
+        : status === 'In Progress' ? 'investigating'
+        : status === 'Rejected' ? 'rejected'
+        : 'pending';
       await fetchFromBackend(`/reports/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          status: backendStatus,
-          admin_notes: notes,
-        }),
+        body: JSON.stringify({ status: backendStatus, admin_notes: notes }),
       });
     } catch (e) {
       console.warn('Failed to sync report status to backend:', e);
     }
 
+    // Broadcast to all mobile users via Supabase real-time
+    await pushStatusUpdate(id, oldStatus, status, actor, undefined, notes);
+
     const index = cachedMergedReports.findIndex((r) => r.id === id);
-    if (index === -1) {
-      throw new Error('Report not found');
-    }
+    if (index === -1) throw new Error('Report not found');
 
     const updated: PollutionReport = {
       ...cachedMergedReports[index],
@@ -201,6 +237,8 @@ export const reportsService = {
     actor: string,
     notes?: string
   ): Promise<PollutionReport> => {
+    const oldStatus = cachedMergedReports.find((r) => r.id === reportId)?.status || 'Pending';
+
     try {
       await fetchFromBackend(`/reports/${reportId}`, {
         method: 'PATCH',
@@ -211,6 +249,16 @@ export const reportsService = {
         }),
       });
     } catch (e) {}
+
+    // Broadcast assignment to all mobile users via Supabase real-time
+    await pushStatusUpdate(
+      reportId,
+      oldStatus,
+      'Assigned',
+      actor,
+      departmentName,
+      notes || `Assigned to ${departmentName} for field inspection.`
+    );
 
     const index = cachedMergedReports.findIndex((r) => r.id === reportId);
     if (index === -1) throw new Error('Report not found');
