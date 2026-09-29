@@ -31,10 +31,24 @@ export const airQualityService = {
       const reportsList = reportsRes && Array.isArray(reportsRes.reports) ? reportsRes.reports : [];
       const alertsList = alertData && Array.isArray(alertData.alerts) ? alertData.alerts : [];
       const hotspotsList = hotspotData && Array.isArray(hotspotData.hotspots) ? hotspotData.hotspots : [];
-      const citiesCount = Array.isArray(citiesRes) ? citiesRes.length : 24;
+      const citiesCount = Array.isArray(citiesRes) ? citiesRes.length : 0;
+
+      // Only count reports from the last 24 hours
+      const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+      const reports24hList = reportsList.filter((r) =>
+        r.created_at && new Date(r.created_at).getTime() >= cutoff24h
+      );
 
       const pendingReports = reportsList.filter((r) => (r.status || '').toLowerCase() === 'pending').length;
-      const resolvedReports = reportsList.filter((r) => (r.status || '').toLowerCase() === 'resolved').length;
+      // Backend uses 'verified' for resolved (enum constraint)
+      const resolvedReports = reportsList.filter((r) => {
+        const s = (r.status || '').toLowerCase();
+        return s === 'verified' || s === 'resolved';
+      }).length;
+      const inProgressReports = reportsList.filter((r) => {
+        const s = (r.status || '').toLowerCase();
+        return s === 'reviewed' || s === 'assigned';
+      }).length;
       const criticalAlerts = alertsList.filter((a) => a.severity === 'high' || a.severity === 'severe').length;
       const activeHotspots = hotspotsList.length;
 
@@ -42,8 +56,8 @@ export const airQualityService = {
         totalSensors: {
           value: citiesCount + activeHotspots,
           onlineCount: citiesCount,
-          calibratingCount: Math.max(1, Math.round(citiesCount * 0.05)),
-          offlineCount: Math.max(0, Math.round(citiesCount * 0.05)),
+          calibratingCount: 0,
+          offlineCount: 0,
         },
         activeAlerts: {
           value: alertsList.length,
@@ -52,29 +66,31 @@ export const airQualityService = {
           newCount: alertsList.length,
         },
         reports24h: {
-          value: reportsList.length,
-          percentageChange24h: reportsList.length > 0 ? 15 : 0,
+          value: reports24hList.length,
+          percentageChange24h: 0,
           pendingReviewCount: pendingReports,
           verifiedCount: resolvedReports,
           pendingCount: pendingReports,
         },
         actionsTaken: {
-          value: resolvedReports + (reportsList.length - pendingReports),
+          value: resolvedReports + inProgressReports,
           completedCount: resolvedReports,
-          inProgressCount: Math.max(0, reportsList.length - pendingReports - resolvedReports),
+          inProgressCount: inProgressReports,
           approvedCount: resolvedReports,
         },
       };
     } catch (e) {
       console.warn('Live KPI fetch error:', e);
+      // Return real zeros — never fake data
       return {
-        totalSensors: { value: 18, onlineCount: 16, calibratingCount: 1, offlineCount: 1 },
-        activeAlerts: { value: 3, criticalCount: 1, highCount: 2, newCount: 3 },
-        reports24h: { value: 5, percentageChange24h: 12, pendingReviewCount: 2, verifiedCount: 3, pendingCount: 2 },
-        actionsTaken: { value: 4, completedCount: 3, inProgressCount: 1, approvedCount: 3 },
+        totalSensors: { value: 0, onlineCount: 0, calibratingCount: 0, offlineCount: 0 },
+        activeAlerts: { value: 0, criticalCount: 0, highCount: 0, newCount: 0 },
+        reports24h: { value: 0, percentageChange24h: 0, pendingReviewCount: 0, verifiedCount: 0, pendingCount: 0 },
+        actionsTaken: { value: 0, completedCount: 0, inProgressCount: 0, approvedCount: 0 },
       };
     }
   },
+
 
   getWeather: async (lat = 28.6139, lon = 77.209): Promise<WeatherData> => {
     try {

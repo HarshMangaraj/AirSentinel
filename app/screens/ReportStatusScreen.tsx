@@ -23,10 +23,11 @@ const STAGES: { key: string; label: string; icon: any; color: string }[] = [
 function normalizeStatus(s: string): string {
   const v = (s || '').toLowerCase().replace(/ /g, '_');
   if (v === 'pending') return 'pending';
-  if (v === 'reviewing' || v === 'reviewed' || v === 'under_review' || v === 'verified') return 'reviewing';
+  if (v === 'reviewing' || v === 'reviewed' || v === 'under_review') return 'reviewing';
   if (v === 'assigned') return 'assigned';
   if (v === 'in_progress' || v === 'investigating' || v === 'in progress') return 'in_progress';
-  if (v === 'resolved') return 'resolved';
+  // 'verified' is what the backend stores for resolved (PostgreSQL enum constraint)
+  if (v === 'resolved' || v === 'verified') return 'resolved';
   return 'pending';
 }
 

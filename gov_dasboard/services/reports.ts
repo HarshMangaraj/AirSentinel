@@ -58,8 +58,8 @@ function mapCategoryToIssueType(category?: string | null): ReportType {
 
 function mapStatusToUiStatus(status?: string | null): ReportStatus {
   const s = (status || '').toLowerCase();
-  if (s === 'resolved') return 'Resolved';
-  if (s === 'investigating' || s === 'under_review' || s === 'in progress' || s === 'in_progress') return 'In Progress';
+  if (s === 'resolved' || s === 'verified') return 'Resolved';
+  if (s === 'investigating' || s === 'under_review' || s === 'in progress' || s === 'in_progress' || s === 'reviewed') return 'In Progress';
   if (s === 'assigned') return 'Assigned';
   if (s === 'rejected' || s === 'dismissed') return 'Rejected';
   return 'Pending';

@@ -48,8 +48,8 @@ function mapReportToFeedEvent(r: BackendReport): LiveFeedEvent {
   };
 }
 
-let notifsDatabase = [...MOCK_NOTIFICATIONS];
-let feedDatabase = [...MOCK_LIVE_FEED];
+let notifsDatabase: NotificationItem[] = [];
+let feedDatabase: LiveFeedEvent[] = [];
 let lastFetchedReportIds = new Set<string>();
 
 async function syncFromBackend() {
