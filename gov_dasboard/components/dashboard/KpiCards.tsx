@@ -60,7 +60,7 @@ export const KpiCards: React.FC = () => {
     {
       title: 'Reports (24h)',
       value: kpiData.reports24h.value,
-      subtext: `+${kpiData.reports24h.percentageChange24h}% vs yesterday`,
+      subtext: `${kpiData.reports24h.pendingReviewCount ?? kpiData.reports24h.pendingCount ?? 0} Pending Review • +${kpiData.reports24h.percentageChange24h}% today`,
       icon: FileText,
       color: '#3B82F6',
       bgGradient: 'from-blue-500/10 to-indigo-500/5',

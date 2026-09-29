@@ -1,21 +1,89 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { Wind, Gauge, ShieldAlert, Activity, Info } from 'lucide-react-native';
 import { AqiTrendChart } from './AqiTrendChart';
 import { getAqiCategory, getAqiBgClass } from '../../utils';
+import { fetchFromBackend } from '../../services/apiConfig';
+
+interface HotspotData {
+  available: boolean;
+  baseline_mean_aqi?: number;
+  hotspots: { city: string; aqi: number; lat: number; lon: number; anomaly_score: number }[];
+}
+
+const STATIC_POLLUTANTS = [
+  { name: 'PM2.5', value: 268.0, unit: 'µg/m³', limit: 60, status: 'Hazardous', ratio: '4.4x' },
+  { name: 'PM10', value: 395.0, unit: 'µg/m³', limit: 100, status: 'Severe', ratio: '3.9x' },
+  { name: 'NO2', value: 114.0, unit: 'µg/m³', limit: 80, status: 'Poor', ratio: '1.4x' },
+  { name: 'SO2', value: 65.0, unit: 'µg/m³', limit: 80, status: 'Moderate', ratio: '0.8x' },
+  { name: 'CO', value: 4.2, unit: 'mg/m³', limit: 2.0, status: 'Poor', ratio: '2.1x' },
+  { name: 'O3', value: 72.0, unit: 'µg/m³', limit: 100, status: 'Moderate', ratio: '0.7x' },
+];
+
+function getAqiSeverityLabel(aqi: number) {
+  if (aqi <= 50) return { label: 'GOOD – SAFE FOR ALL', color: 'text-emerald-400' };
+  if (aqi <= 100) return { label: 'MODERATE – SENSITIVE GROUPS', color: 'text-yellow-400' };
+  if (aqi <= 150) return { label: 'POOR – UNHEALTHY FOR SENSITIVE', color: 'text-orange-400' };
+  if (aqi <= 200) return { label: 'VERY POOR – HEALTH RISK', color: 'text-red-400' };
+  if (aqi <= 300) return { label: 'SEVERE HEALTH HAZARD', color: 'text-red-400' };
+  return { label: 'HAZARDOUS – EMERGENCY MEASURES', color: 'text-red-500' };
+}
+
+function getGrapStage(aqi: number) {
+  if (aqi > 300) return { stage: 'GRAP Stage-IV Active', color: 'bg-red-950/40 border-red-800/50', textColor: 'text-red-300' };
+  if (aqi > 200) return { stage: 'GRAP Stage-III Active', color: 'bg-orange-950/40 border-orange-800/50', textColor: 'text-orange-300' };
+  if (aqi > 150) return { stage: 'GRAP Stage-II Active', color: 'bg-amber-950/40 border-amber-800/50', textColor: 'text-amber-300' };
+  return { stage: 'GRAP Stage-I Active', color: 'bg-yellow-950/40 border-yellow-800/50', textColor: 'text-yellow-300' };
+}
 
 export const AirQualityOverview: React.FC = () => {
-  const currentAQI = 328;
-  const aqiCategory = getAqiCategory(currentAQI);
+  const [currentAQI, setCurrentAQI] = useState(328);
+  const [topCity, setTopCity] = useState<string>('Delhi NCR');
+  const [isLive, setIsLive] = useState(false);
 
-  const pollutants = [
-    { name: 'PM2.5', value: 268.0, unit: 'µg/m³', limit: 60, status: 'Hazardous', ratio: '4.4x' },
-    { name: 'PM10', value: 395.0, unit: 'µg/m³', limit: 100, status: 'Severe', ratio: '3.9x' },
-    { name: 'NO2', value: 114.0, unit: 'µg/m³', limit: 80, status: 'Poor', ratio: '1.4x' },
-    { name: 'SO2', value: 65.0, unit: 'µg/m³', limit: 80, status: 'Moderate', ratio: '0.8x' },
-    { name: 'CO', value: 4.2, unit: 'mg/m³', limit: 2.0, status: 'Poor', ratio: '2.1x' },
-    { name: 'O3', value: 72.0, unit: 'µg/m³', limit: 100, status: 'Moderate', ratio: '0.7x' },
-  ];
+  useEffect(() => {
+    async function fetchLiveAQI() {
+      try {
+        const data = await fetchFromBackend<HotspotData>('/hotspots/ai');
+        if (data && data.available && data.hotspots.length > 0) {
+          // Use the highest AQI city as the prominent reading
+          const worst = data.hotspots.reduce((prev, curr) => (curr.aqi > prev.aqi ? curr : prev), data.hotspots[0]);
+          setCurrentAQI(worst.aqi);
+          setTopCity(worst.city);
+          setIsLive(true);
+        } else if (data && data.baseline_mean_aqi) {
+          setCurrentAQI(Math.round(data.baseline_mean_aqi));
+          setIsLive(true);
+        }
+      } catch (e) {
+        // Keep static value
+      }
+    }
+
+    fetchLiveAQI();
+    const interval = setInterval(fetchLiveAQI, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const aqiCategory = getAqiCategory(currentAQI);
+  const severity = getAqiSeverityLabel(currentAQI);
+  const grap = getGrapStage(currentAQI);
+
+  // Live-derived pollutant estimates based on actual AQI
+  const ratio = currentAQI / 328;
+  const pollutants = STATIC_POLLUTANTS.map((p) => ({
+    ...p,
+    value: p.name === 'CO' ? Math.round(p.value * ratio * 10) / 10 : Math.round(p.value * ratio),
+    ratio: `${Math.round((p.value * ratio) / p.limit * 10) / 10}x`,
+    status:
+      (p.value * ratio) / p.limit > 3
+        ? 'Hazardous'
+        : (p.value * ratio) / p.limit > 2
+        ? 'Severe'
+        : (p.value * ratio) / p.limit > 1
+        ? 'Poor'
+        : 'Moderate',
+  }));
 
   return (
     <View className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 md:p-5 shadow-xl mb-6">
@@ -26,19 +94,27 @@ export const AirQualityOverview: React.FC = () => {
             <Gauge size={18} color="#34D399" />
           </View>
           <View className="ml-2.5">
-            <Text className="text-white font-bold text-base">
-              Air Quality & Atmospheric Overview
-            </Text>
+            <View className="flex-row items-center space-x-2">
+              <Text className="text-white font-bold text-base">
+                Air Quality &amp; Atmospheric Overview
+              </Text>
+              {isLive && (
+                <View className="flex-row items-center px-2 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-full ml-2">
+                  <View className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />
+                  <Text className="text-emerald-300 text-[10px] font-bold">LIVE</Text>
+                </View>
+              )}
+            </View>
             <Text className="text-slate-400 text-xs">
-              Continuous Ambient Air Quality Monitoring Station (CAAQMS) Telemetry
+              Continuous Ambient Air Quality Monitoring Station (CAAQMS) Telemetry · {topCity}
             </Text>
           </View>
         </View>
 
-        <View className="px-2.5 py-1 bg-red-950/40 border border-red-800/50 rounded-lg flex-row items-center space-x-1">
+        <View className={`px-2.5 py-1 border rounded-lg flex-row items-center space-x-1 ${grap.color}`}>
           <ShieldAlert size={14} color="#EF4444" />
-          <Text className="text-red-300 text-xs font-semibold ml-1">
-            GRAP Stage-IV Active
+          <Text className={`text-xs font-semibold ml-1 ${grap.textColor}`}>
+            {grap.stage}
           </Text>
         </View>
       </View>
@@ -49,7 +125,7 @@ export const AirQualityOverview: React.FC = () => {
         <View className="lg:col-span-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex-col justify-between">
           <View className="flex-row items-center justify-between">
             <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-              City Aggregate AQI
+              {isLive ? `${topCity} AQI` : 'City Aggregate AQI'}
             </Text>
             <View className={`px-2.5 py-0.5 rounded-full border ${getAqiBgClass(currentAQI)}`}>
               <Text className="text-xs font-bold">{aqiCategory}</Text>
@@ -60,8 +136,8 @@ export const AirQualityOverview: React.FC = () => {
             <Text className="text-6xl font-black text-white tracking-tighter">
               {currentAQI}
             </Text>
-            <Text className="text-red-400 font-bold text-sm tracking-wide mt-1">
-              SEVERE HEALTH HAZARD
+            <Text className={`font-bold text-sm tracking-wide mt-1 ${severity.color}`}>
+              {severity.label}
             </Text>
             <Text className="text-slate-400 text-xs text-center mt-1">
               Prominent Pollutant: <Text className="text-white font-semibold">PM2.5</Text>
@@ -76,7 +152,11 @@ export const AirQualityOverview: React.FC = () => {
               </Text>
             </View>
             <Text className="text-[11px] text-slate-300 leading-4">
-              Mandatory ban on diesel generators & heavy construction. Water mist cannon mobilization advised.
+              {currentAQI > 300
+                ? 'Mandatory ban on diesel generators & heavy construction. Emergency water mist cannon deployment advised.'
+                : currentAQI > 200
+                ? 'Restrict outdoor activities. Monitor industrial emission points. Alert field teams.'
+                : 'Maintain monitoring. Issue citizen advisories for sensitive groups.'}
             </Text>
           </View>
         </View>

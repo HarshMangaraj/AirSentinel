@@ -14,6 +14,8 @@ import { EmergencyResponseModal } from '../actions/EmergencyResponseModal';
 import { ReportGeneratorModal } from '../reports/ReportGeneratorModal';
 import { ActionVerificationModal } from '../actions/ActionVerificationModal';
 
+import { CitizenReportAlertBanner } from '../common/CitizenReportAlertBanner';
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
@@ -33,7 +35,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           contentContainerStyle={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
           showsVerticalScrollIndicator
         >
-          <View className="flex-1 p-4 md:p-6">{children}</View>
+          <View className="flex-1 p-4 md:p-6">
+            <CitizenReportAlertBanner />
+            {children}
+          </View>
           <Footer />
         </ScrollView>
       </View>

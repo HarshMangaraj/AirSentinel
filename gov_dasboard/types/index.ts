@@ -296,7 +296,9 @@ export interface DashboardKPIData {
   };
   reports24h: {
     value: number;
-    pendingCount: number;
+    pendingCount?: number;
+    pendingReviewCount?: number;
+    verifiedCount?: number;
     percentageChange24h: number;
   };
   actionsTaken: {

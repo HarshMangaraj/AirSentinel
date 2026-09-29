@@ -1794,6 +1794,8 @@ export const MOCK_KPI_DATA: DashboardKPIData = {
   reports24h: {
     value: 12,
     pendingCount: 2,
+    pendingReviewCount: 2,
+    verifiedCount: 8,
     percentageChange24h: 18.5,
   },
   actionsTaken: {
