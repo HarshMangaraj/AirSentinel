@@ -61,26 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single();
-      
+
     if (!error && data) {
       setProfile(data as UserProfile);
     } else {
-      // Fallback: check if we saved it in user_metadata during setup
-      const { data: { session } } = await supabase.auth.getSession();
-      const meta = session?.user?.user_metadata;
-      
-      if (meta && meta.full_name) {
-        setProfile({
-          id: userId,
-          full_name: meta.full_name,
-          phone: meta.phone || null,
-          bio: meta.bio || null,
-          avatar_url: meta.avatar_url || null,
-          created_at: new Date().toISOString()
-        });
-      } else {
-        setProfile(null);
-      }
+      // No profile row found → user needs to complete ProfileSetupScreen
+      setProfile(null);
     }
     setProfileLoading(false);
   }

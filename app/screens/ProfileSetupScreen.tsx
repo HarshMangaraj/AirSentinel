@@ -143,22 +143,6 @@ export function ProfileSetupScreen({ navigation }: any) {
       }, { onConflict: 'id' });
 
       if (upsertError) {
-        // Table not created yet in Supabase
-        if (
-          upsertError.message.includes('schema cache') ||
-          upsertError.message.includes('does not exist') ||
-          upsertError.message.includes('relation') ||
-          upsertError.code === 'PGRST204' ||
-          upsertError.code === '42P01'
-        ) {
-          // Fallback: save name to Supabase Auth user_metadata so app can proceed
-          await supabase.auth.updateUser({
-            data: { full_name: fullName.trim(), phone: phone.trim() || null, bio: bio.trim() || null }
-          });
-          // Force refresh so navigator can proceed
-          await refreshProfile();
-          return;
-        }
         setError(upsertError.message);
       } else {
         await refreshProfile();
