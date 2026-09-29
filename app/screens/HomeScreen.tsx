@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Animated,
   StatusBar,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -407,41 +408,45 @@ export function HomeScreen({ navigation }: any) {
   const [history, setHistory] = useState<AqiHistory | null>(null);
   const [pollutants, setPollutants] = useState<Pollutants | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const loc = await getDeviceLocation().catch(() => null);
-        const point = loc || { lat: 28.6139, lon: 77.209 };
+  const [refreshing, setRefreshing] = useState(false);
 
-        const [label] = await Promise.all([
-          loc ? reverseGeocode(loc.lat, loc.lon).catch(() => 'Mountain View') : Promise.resolve('Mountain View'),
-        ]);
+  const loadData = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoading(true);
 
-        if (!isMounted) return;
-        setLocationLabel(label);
+    try {
+      const loc = await getDeviceLocation().catch(() => null);
+      const point = loc || { lat: 28.6139, lon: 77.209 };
 
-        const results = await Promise.allSettled([
-          getCurrentAqi(point.lat, point.lon),
-          getWeather(point.lat, point.lon),
-          getPollutants(point.lat, point.lon),
-          getAqiHistory(point.lat, point.lon),
-        ]);
+      const [label] = await Promise.all([
+        loc ? reverseGeocode(loc.lat, loc.lon).catch(() => 'Mountain View') : Promise.resolve('Mountain View'),
+      ]);
 
-        if (!isMounted) return;
-        const [latestRes, weatherRes, pollutantRes, historyRes] = results;
-        setLatestAqi(latestRes.status === 'fulfilled' ? latestRes.value : null);
-        setWeather(weatherRes.status === 'fulfilled' ? weatherRes.value : null);
-        setPollutants(pollutantRes.status === 'fulfilled' ? pollutantRes.value : null);
-        setHistory(historyRes.status === 'fulfilled' ? historyRes.value : null);
-      } catch (err) {
-        console.error('HomeScreen Init Error:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    })();
-    return () => { isMounted = false; };
+      setLocationLabel(label);
+
+      const results = await Promise.allSettled([
+        getCurrentAqi(point.lat, point.lon),
+        getWeather(point.lat, point.lon),
+        getPollutants(point.lat, point.lon),
+        getAqiHistory(point.lat, point.lon),
+      ]);
+
+      const [latestRes, weatherRes, pollutantRes, historyRes] = results;
+      setLatestAqi(latestRes.status === 'fulfilled' ? latestRes.value : null);
+      setWeather(weatherRes.status === 'fulfilled' ? weatherRes.value : null);
+      setPollutants(pollutantRes.status === 'fulfilled' ? pollutantRes.value : null);
+      setHistory(historyRes.status === 'fulfilled' ? historyRes.value : null);
+    } catch (err) {
+      console.error('HomeScreen Init Error:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const currentAqi = latestAqi?.aqi ?? 42;
 
@@ -479,7 +484,18 @@ export function HomeScreen({ navigation }: any) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bgPage} />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadData(true)}
+              tintColor={C.green}
+              colors={[C.green]}
+            />
+          }
+        >
 
           {/* ── HEADER ── */}
           <View style={styles.header}>
@@ -495,6 +511,13 @@ export function HomeScreen({ navigation }: any) {
               </View>
             </View>
             <View style={styles.headerIcons}>
+              <Pressable onPress={() => loadData()} style={styles.iconBtn}>
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={C.green} />
+                ) : (
+                  <Feather name="refresh-cw" size={18} color={C.ink} />
+                )}
+              </Pressable>
               <Pressable onPress={toggleTheme} style={styles.iconBtn}>
                 <Feather name={isDark ? 'sun' : 'moon'} size={19} color={C.ink} />
               </Pressable>

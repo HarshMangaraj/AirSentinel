@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, Pressable, StyleSheet,
-  ActivityIndicator, Animated,
+  ActivityIndicator, Animated, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
@@ -40,7 +41,8 @@ interface ReportUpdate {
 }
 
 function getStatusMeta(status: string) {
-  const key = status.toLowerCase().replace(/ /g, '_');
+  const key = (status || '').toLowerCase().replace(/ /g, '_');
+  if (key === 'resolved' || key === 'verified') return STATUS_META['resolved'];
   return STATUS_META[key] || STATUS_META['pending'];
 }
 
@@ -99,6 +101,7 @@ export function AlertsScreen() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [reportUpdates, setReportUpdates] = useState<ReportUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [newUpdateCount, setNewUpdateCount] = useState(0);
 
@@ -109,27 +112,39 @@ export function AlertsScreen() {
     { key: 'reports',     label: `${t.reports}${newUpdateCount > 0 ? ` (${newUpdateCount})` : ''}` },
   ];
 
-  // Fetch AQI/health alerts
-  useEffect(() => {
-    getAlerts()
-      .then((data: any) => setAlerts(data?.alerts || (Array.isArray(data) ? data : [])))
-      .catch(() => setAlerts([]))
-      .finally(() => setLoading(false));
+  const fetchData = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const [alertsRes, updatesRes] = await Promise.all([
+        getAlerts().catch(() => []),
+        supabase
+          .from('report_status_updates')
+          .select('*')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(50)
+          .then(({ data }) => data || []),
+      ]);
+
+      const safeAlerts = (alertsRes as any)?.alerts || (Array.isArray(alertsRes) ? alertsRes : []);
+      setAlerts(safeAlerts);
+      if (updatesRes) setReportUpdates(updatesRes as ReportUpdate[]);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  // Fetch recent report status updates (last 24h, all users)
-  useEffect(() => {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    supabase
-      .from('report_status_updates')
-      .select('*')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        if (data) setReportUpdates(data as ReportUpdate[]);
-      });
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   // Real-time subscription – broadcasts status changes to ALL users
   useEffect(() => {
@@ -162,9 +177,23 @@ export function AlertsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
-      <Text style={[typeScale.title, { color: colors.ink, marginBottom: spacing.md }]}>
-        {t.alerts}
-      </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+        <Text style={[typeScale.title, { color: colors.ink }]}>
+          {t.alerts}
+        </Text>
+        <TouchableOpacity
+          onPress={() => fetchData()}
+          style={styles.refreshBtn}
+          disabled={loading || refreshing}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={colors.signal} />
+          ) : (
+            <Feather name="refresh-cw" size={18} color={colors.ink} />
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Tabs */}
       <View style={styles.tabRow}>
@@ -196,10 +225,12 @@ export function AlertsScreen() {
             data={reportUpdates}
             keyExtractor={(u) => u.id}
             contentContainerStyle={{ gap: spacing.sm }}
+            refreshing={refreshing}
+            onRefresh={() => fetchData(true)}
             renderItem={({ item }) => <ReportUpdateCard item={item} colors={colors} />}
           />
         )
-      ) : loading ? (
+      ) : loading && !refreshing ? (
         <ActivityIndicator color={colors.signal} style={{ marginTop: 40 }} />
       ) : filteredAlerts.length === 0 ? (
         <GlassCard style={styles.emptyCard} intensity={25}>
@@ -212,6 +243,8 @@ export function AlertsScreen() {
           data={filteredAlerts}
           keyExtractor={(a) => a.id}
           contentContainerStyle={{ gap: spacing.sm }}
+          refreshing={refreshing}
+          onRefresh={() => fetchData(true)}
           renderItem={({ item }) => {
             const icon = ICONS[item.severity] || ICONS.info;
             return (
@@ -234,6 +267,7 @@ export function AlertsScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1, padding: spacing.md },
+  refreshBtn:  { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   tabRow:      { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' },
   tab:         { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.md, backgroundColor: 'rgba(0,0,0,0.05)' },
   emptyCard:   { padding: spacing.xl, alignItems: 'center' },

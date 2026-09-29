@@ -111,7 +111,7 @@ def get_reports_summary(db: Session = Depends(get_db)):
     total = len(reports)
     pending = sum(1 for r in reports if (r.status or "").lower() == "pending")
     investigating = sum(1 for r in reports if (r.status or "").lower() in ["investigating", "under_review", "assigned"])
-    resolved = sum(1 for r in reports if (r.status or "").lower() == "resolved")
+    resolved = sum(1 for r in reports if (r.status or "").lower() in ["resolved", "verified"])
     today = sum(
         1 for r in reports
         if r.created_at and r.created_at.date() == datetime.utcnow().date()

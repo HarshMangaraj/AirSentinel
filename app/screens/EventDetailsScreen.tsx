@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GlassCard } from '../components/GlassCard';
 import { useTheme } from '../context/ThemeContext';
 import { getReport } from '../lib/api';
+import { getReportStatusMeta } from '../lib/reportUtils';
 import { typography as typeScale, spacing, radius } from '../theme/tokens';
 
 export function EventDetailsScreen({ route, navigation }: any) {
@@ -13,9 +14,14 @@ export function EventDetailsScreen({ route, navigation }: any) {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchReport = useCallback(() => {
+    setLoading(true);
     getReport(id).then(setReport).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.paper }]}>
@@ -24,7 +30,12 @@ export function EventDetailsScreen({ route, navigation }: any) {
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </Pressable>
         <Text style={[typeScale.title, { color: colors.ink }]}>Event Details</Text>
-        <View style={{ width: 22 }} />
+        <TouchableOpacity
+          onPress={fetchReport}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="refresh-cw" size={18} color={colors.ink} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -47,11 +58,16 @@ export function EventDetailsScreen({ route, navigation }: any) {
                 {report.category || 'Pollution report'}
               </Text>
             </View>
-            <View style={[styles.badge, { backgroundColor: report.status === 'verified' ? colors.aqi.good + '22' : colors.muted + '22' }]}>
-              <Text style={[typeScale.small, { color: report.status === 'verified' ? colors.aqi.good : colors.muted }]}>
-                {report.status}
-              </Text>
-            </View>
+            {(() => {
+              const meta = getReportStatusMeta(report.status);
+              return (
+                <View style={[styles.badge, { backgroundColor: meta.color + '22' }]}>
+                  <Text style={[typeScale.small, { color: meta.color, fontWeight: '600' }]}>
+                    {meta.label}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           <Text style={[typeScale.body, { color: colors.ink, marginTop: spacing.md }]}>

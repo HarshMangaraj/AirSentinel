@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, TextInput, Pressable, Image, StyleSheet, ScrollView, Modal, ActivityIndicator,
-  Animated, TouchableOpacity, KeyboardAvoidingView, Platform
+  Animated, TouchableOpacity, KeyboardAvoidingView, Platform, RefreshControl
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
@@ -14,7 +15,9 @@ import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { uploadReportImage } from "../lib/storage";
 import { submitReport, getMyReports, NearbyReport } from "../lib/api";
+import { supabase } from "../lib/supabase";
 import { getDeviceLocation, reverseGeocode } from "../lib/location";
+import { getReportStatusMeta } from "../lib/reportUtils";
 import { typography as typeScale, spacing, radius } from "../theme/tokens";
 
 const CATEGORIES = ["Smoke", "Road Dust", "Waste Burning", "Industrial Emission", "Other"];
@@ -65,16 +68,46 @@ export function ReportScreen({ navigation }: any) {
   const [errorMsg, setErrorMsg] = useState("");
   const [recentReports, setRecentReports] = useState<NearbyReport[]>(DUMMY_REPORTS);
   const [loadingReports, setLoadingReports] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [latestStatuses, setLatestStatuses] = useState<Record<string, string>>({});
 
-  useEffect(() => { fetchReports(); }, []);
+  const fetchReports = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoadingReports(true);
 
-  function fetchReports() {
-    setLoadingReports(true);
-    getMyReports()
-      .then((data) => setRecentReports([...data, ...DUMMY_REPORTS]))
-      .catch(() => {})
-      .finally(() => setLoadingReports(false));
-  }
+    try {
+      const data = await getMyReports();
+      setRecentReports([...data, ...DUMMY_REPORTS]);
+
+      if (data && data.length > 0) {
+        const ids = data.map((r: any) => r.id);
+        const { data: updates } = await supabase
+          .from('report_status_updates')
+          .select('report_id, new_status, created_at')
+          .in('report_id', ids)
+          .order('created_at', { ascending: false });
+
+        if (updates) {
+          const map: Record<string, string> = {};
+          updates.forEach((row: any) => {
+            if (!map[row.report_id]) map[row.report_id] = row.new_status;
+          });
+          setLatestStatuses(map);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingReports(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchReports();
+    }, [fetchReports])
+  );
 
   async function openCamera() {
     setOptionsModalVisible(false);
@@ -170,9 +203,32 @@ export function ReportScreen({ navigation }: any) {
       
       <View style={styles.header}>
         <Text style={[typeScale.title, { color: colors.ink }]}>Community Reports</Text>
+        <TouchableOpacity
+          onPress={() => fetchReports()}
+          style={[styles.refreshBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}
+          disabled={loadingReports || refreshing}
+          activeOpacity={0.7}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={TEAL} />
+          ) : (
+            <Feather name="refresh-cw" size={17} color={colors.ink} />
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchReports(true)}
+            tintColor={TEAL}
+            colors={[TEAL]}
+          />
+        }
+      >
         
         {/* Compressed Hero Card */}
         <AnimatedPress onPress={() => setOptionsModalVisible(true)}>
@@ -248,32 +304,41 @@ export function ReportScreen({ navigation }: any) {
         ) : recentReports.length === 0 ? (
           <GlassCard intensity={25} style={{ padding: spacing.lg, alignItems: "center" }}><Text style={[typeScale.body, { color: colors.muted }]}>No recent reports.</Text></GlassCard>
         ) : (
-          recentReports.map((report) => (
-            <AnimatedPress key={report.id} onPress={() => navigation.navigate("ReportStatus", { id: report.id })}>
-              <GlassCard style={styles.reportRow} intensity={20}>
-                {report.media_url ? (
-                  <Image source={{ uri: report.media_url }} style={styles.reportImage} />
-                ) : (
-                  <View style={[styles.reportImage, { backgroundColor: isDark ? "#334155" : "#E2E8F0", alignItems: "center", justifyContent: "center" }]}><Feather name="image" size={20} color={colors.muted} /></View>
-                )}
-                
-                <View style={{ flex: 1, marginLeft: 14 }}>
-                  <Text style={[typeScale.label, { color: colors.ink }]} numberOfLines={1}>
-                    {report.category || report.description || "Air Pollution"}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-                    <Text style={[typeScale.small, { color: colors.muted }]}>
-                      {report.distance_km ? `${report.distance_km} km away` : "Nearby"} · 
+          recentReports.map((report) => {
+            const rawStatus = latestStatuses[report.id] || report.status;
+            const meta = getReportStatusMeta(rawStatus);
+            return (
+              <AnimatedPress key={report.id} onPress={() => navigation.navigate("ReportStatus", { id: report.id })}>
+                <GlassCard style={styles.reportRow} intensity={20}>
+                  {report.media_url ? (
+                    <Image source={{ uri: report.media_url }} style={styles.reportImage} />
+                  ) : (
+                    <View style={[styles.reportImage, { backgroundColor: isDark ? "#334155" : "#E2E8F0", alignItems: "center", justifyContent: "center" }]}>
+                      <Feather name="image" size={20} color={colors.muted} />
+                    </View>
+                  )}
+                  
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={[typeScale.label, { color: colors.ink }]} numberOfLines={1}>
+                      {report.category || report.description || "Air Pollution"}
                     </Text>
-                    <Text style={[typeScale.small, { color: report.status === "pending" ? "#F59E0B" : TEAL, marginLeft: 4 }]}>
-                      {report.status === "pending" ? "Pending Review" : "Verified"}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                      <Text style={[typeScale.small, { color: colors.muted }]}>
+                        {report.distance_km ? `${report.distance_km} km away` : "Nearby"} · 
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 4 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.color, marginRight: 4 }} />
+                        <Text style={[typeScale.small, { color: meta.color, fontWeight: "600" }]}>
+                          {meta.label}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </GlassCard>
-            </AnimatedPress>
-          ))
+                  <Feather name="chevron-right" size={18} color={colors.muted} />
+                </GlassCard>
+              </AnimatedPress>
+            );
+          })
         )}
       </ScrollView>
 
@@ -359,7 +424,21 @@ export function ReportScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   
   heroCard: {
     borderRadius: 20,

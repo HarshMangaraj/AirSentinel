@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Switch, Animated, TouchableOpacity, Alert, Image, Modal,
+  ScrollView, Switch, Animated, TouchableOpacity, Alert, Image, Modal, RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { GlassCard } from "../components/GlassCard";
@@ -13,6 +14,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useProfilePhoto } from "../context/ProfilePhotoContext";
 import { getMyReports, NearbyReport } from "../lib/api";
 import { supabase } from "../lib/supabase";
+import { getReportStatusMeta } from "../lib/reportUtils";
 import { typography as typeScale, spacing, radius } from "../theme/tokens";
 
 type Screen = "profile" | "reports" | "settings" | "accountInfo" | "badges";
@@ -81,6 +83,7 @@ export function ProfileScreen({ navigation }: any) {
   const { photoUri, setPhotoUri } = useProfilePhoto();
   const [reports, setReports] = useState<NearbyReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [screen, setScreen] = useState<Screen>("profile");
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [locationOn, setLocationOn] = useState(true);
@@ -88,29 +91,43 @@ export function ProfileScreen({ navigation }: any) {
   // Latest status per report from Supabase (overrides backend status)
   const [latestStatuses, setLatestStatuses] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    getMyReports().then(setReports).finally(() => setLoading(false));
+  const loadReports = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const data = await getMyReports();
+      setReports(data || []);
+
+      if (data && data.length > 0) {
+        const ids = data.map(r => r.id);
+        const { data: updates } = await supabase
+          .from('report_status_updates')
+          .select('report_id, new_status, created_at')
+          .in('report_id', ids)
+          .order('created_at', { ascending: false });
+
+        if (updates) {
+          const map: Record<string, string> = {};
+          updates.forEach(row => {
+            if (!map[row.report_id]) map[row.report_id] = row.new_status;
+          });
+          setLatestStatuses(map);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  // Once reports load, fetch latest status from Supabase for each
-  useEffect(() => {
-    if (reports.length === 0) return;
-    const ids = reports.map(r => r.id);
-    supabase
-      .from('report_status_updates')
-      .select('report_id, new_status, created_at')
-      .in('report_id', ids)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data) return;
-        // Keep only the most recent update per report
-        const map: Record<string, string> = {};
-        data.forEach(row => {
-          if (!map[row.report_id]) map[row.report_id] = row.new_status;
-        });
-        setLatestStatuses(map);
-      });
-  }, [reports]);
+  useFocusEffect(
+    useCallback(() => {
+      loadReports();
+    }, [loadReports])
+  );
 
   const reportsShared = reports.length > 0 ? String(reports.length) : "--";
   const locationsMonitored = reports.length > 0 ? String(Math.min(reports.length + 3, 12)) : "--";
@@ -154,16 +171,36 @@ export function ProfileScreen({ navigation }: any) {
   };
 
   // Sub-components defined inside main component so they capture context vars
-  function Header({ title, onBack }: { title: string; onBack?: () => void }) {
+  function Header({ title, onBack, rightAction }: { title: string; onBack?: () => void; rightAction?: React.ReactNode }) {
     return (
       <View style={[s.header, { borderBottomColor: colors.glassBorder }]}>
         {onBack
           ? <TouchableOpacity onPress={onBack} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Feather name="arrow-left" size={22} color={colors.ink} /></TouchableOpacity>
           : <View style={s.headerBtn} />}
         <Text style={[typeScale.title, { color: colors.ink, fontSize: 20 }]}>{title}</Text>
-        {title === t.profile
-          ? <TouchableOpacity onPress={() => setScreen("settings")} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Feather name="settings" size={22} color={colors.ink} /></TouchableOpacity>
-          : <View style={s.headerBtn} />}
+        {rightAction !== undefined ? (
+          rightAction
+        ) : title === t.profile ? (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => loadReports()}
+              style={[s.headerBtn, { marginRight: 6 }]}
+              disabled={refreshing}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color={TEAL} />
+              ) : (
+                <Feather name="refresh-cw" size={18} color={colors.ink} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setScreen("settings")} style={s.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Feather name="settings" size={22} color={colors.ink} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={s.headerBtn} />
+        )}
       </View>
     );
   }
@@ -236,33 +273,49 @@ export function ProfileScreen({ navigation }: any) {
   if (screen === "reports") {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: colors.paper }]}>
-        <Header title={t.myReports} onBack={() => setScreen("profile")} />
-        <ScrollView contentContainerStyle={s.scroll}>
-          {loading
+        <Header
+          title={t.myReports}
+          onBack={() => setScreen("profile")}
+          rightAction={
+            <TouchableOpacity
+              onPress={() => loadReports()}
+              style={s.headerBtn}
+              disabled={refreshing}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {refreshing ? (
+                <ActivityIndicator size="small" color={TEAL} />
+              ) : (
+                <Feather name="refresh-cw" size={18} color={colors.ink} />
+              )}
+            </TouchableOpacity>
+          }
+        />
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadReports(true)}
+              tintColor={TEAL}
+              colors={[TEAL]}
+            />
+          }
+        >
+          {loading && !refreshing
             ? <ActivityIndicator color={TEAL} style={{ marginTop: 40 }} />
             : reports.length === 0
               ? <GlassCard style={{ padding: spacing.lg }} intensity={25}><Text style={[typeScale.body, { color: colors.muted, textAlign: "center" }]}>{t.noReports}</Text></GlassCard>
               : reports.map((r) => {
-                  const raw = (latestStatuses[r.id] || r.status || 'pending').toLowerCase().replace(/ /g, '_');
-                  const dotColor =
-                    raw === 'resolved' || raw === 'verified'      ? '#10B981'
-                    : raw === 'in_progress' || raw === 'reviewed'  ? '#F59E0B'
-                    : raw === 'assigned'                           ? '#6366F1'
-                    : '#64748B';
-                  const statusLabel =
-                    raw === 'resolved' || raw === 'verified'      ? 'Resolved ✓'
-                    : raw === 'in_progress' || raw === 'reviewed'  ? 'In Progress'
-                    : raw === 'assigned'                           ? 'Assigned'
-                    : raw === 'dismissed'                          ? 'Dismissed'
-                    : 'Pending';
+                  const meta = getReportStatusMeta(latestStatuses[r.id] || r.status);
                   return (
                     <AnimatedPress key={r.id} onPress={() => navigation.getParent()?.navigate("ReportStatus", { id: r.id })}>
                       <GlassCard style={s.reportRow} intensity={25}>
-                        <View style={[s.reportDot, { backgroundColor: dotColor }]} />
+                        <View style={[s.reportDot, { backgroundColor: meta.color }]} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text style={[typeScale.label, { color: colors.ink }]}>{r.category || r.description || "Pollution report"}</Text>
-                          <Text style={[typeScale.small, { color: dotColor, marginTop: 2, fontWeight: '600' }]}>
-                            {statusLabel} · {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
+                          <Text style={[typeScale.small, { color: meta.color, marginTop: 2, fontWeight: '600' }]}>
+                            {meta.label} · {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
                           </Text>
                         </View>
                         <Feather name="chevron-right" size={16} color={colors.muted} />
@@ -386,7 +439,18 @@ export function ProfileScreen({ navigation }: any) {
   return (
     <SafeAreaView style={[s.container, { backgroundColor: colors.paper }]}>
       <Header title={t.profile} />
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadReports(true)}
+            tintColor={TEAL}
+            colors={[TEAL]}
+          />
+        }
+      >
 
         {/* Profile Card */}
         <GlassCard style={s.profileCard} intensity={20}>

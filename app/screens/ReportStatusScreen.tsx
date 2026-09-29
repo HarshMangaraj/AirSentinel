@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, Image, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Animated
+  ScrollView, Animated, TouchableOpacity, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -67,25 +67,37 @@ export function ReportStatusScreen({ route, navigation }: any) {
     return () => anim.stop();
   }, [latestStatus]);
 
-  // Fetch initial report data
-  useEffect(() => {
-    getReport(id)
-      .then(setReport)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refreshData = useCallback(async (isPull = false) => {
+    if (isPull) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const [repData, histData] = await Promise.all([
+        getReport(id).catch(() => null),
+        supabase
+          .from('report_status_updates')
+          .select('*')
+          .eq('report_id', id)
+          .order('created_at', { ascending: true })
+          .then(({ data }) => data || []),
+      ]);
+
+      if (repData) setReport(repData);
+      if (histData && histData.length > 0) setStatusUpdates(histData as StatusUpdate[]);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [id]);
 
-  // Fetch existing status history from Supabase
+  // Fetch initial report data
   useEffect(() => {
-    supabase
-      .from('report_status_updates')
-      .select('*')
-      .eq('report_id', id)
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (data && data.length > 0) setStatusUpdates(data as StatusUpdate[]);
-      });
-  }, [id]);
+    refreshData();
+  }, [refreshData]);
 
   // Subscribe to real-time new updates for this report
   useEffect(() => {
@@ -119,17 +131,38 @@ export function ReportStatusScreen({ route, navigation }: any) {
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </Pressable>
         <Text style={[typeScale.title, { color: colors.ink, fontSize: 18 }]}>Report Status</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity
+          onPress={() => refreshData()}
+          style={styles.refreshBtn}
+          disabled={loading || refreshing}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={colors.signal} />
+          ) : (
+            <Feather name="refresh-cw" size={18} color={colors.ink} />
+          )}
+        </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {loading && !refreshing ? (
         <ActivityIndicator color={colors.signal} style={{ marginTop: 60 }} />
       ) : !report && statusUpdates.length === 0 ? (
         <Text style={[typeScale.body, { color: colors.muted, padding: spacing.md }]}>
           Report not found.
         </Text>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 60 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: 60 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => refreshData(true)}
+              tintColor={colors.signal}
+              colors={[colors.signal]}
+            />
+          }
+        >
 
           {/* Status Banner */}
           <View style={[
@@ -287,6 +320,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', padding: spacing.md,
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  refreshBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   banner: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: radius.lg, borderWidth: 1.5,

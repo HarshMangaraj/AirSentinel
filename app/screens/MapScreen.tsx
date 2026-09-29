@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getCurrentAqi, getPollutants, getNearbyReports, getWeather, getCities, AqiReading, NearbyReport, Weather, Pollutants, City } from '../lib/api';
 import { getDeviceLocation, reverseGeocode } from '../lib/location';
 import { aqiLabel } from '../lib/aqiScale';
+import { getReportStatusMeta } from '../lib/reportUtils';
 import { spacing, typography as typeScale, radius } from '../theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -147,17 +148,22 @@ export function MapScreen({ navigation }: any) {
             )}
             {activeTab === 'Hotspots' && (
               reports.length === 0 ? <Text style={styles.emptyText}>No hotspots reported nearby.</Text> :
-              reports.map((r, i) => (
-                <View key={r.id || i} style={styles.listItem}>
-                  <View style={[styles.listIconBg, { backgroundColor: '#EF444415' }]}>
-                    <Feather name="activity" size={20} color="#EF4444" />
+              reports.map((r, i) => {
+                const meta = getReportStatusMeta(r.status);
+                return (
+                  <View key={r.id || i} style={styles.listItem}>
+                    <View style={[styles.listIconBg, { backgroundColor: meta.color + '18' }]}>
+                      <Feather name={meta.icon as any || 'activity'} size={18} color={meta.color} />
+                    </View>
+                    <View style={{marginLeft: 12, flex: 1}}>
+                      <Text style={styles.listTitle}>{r.category || r.description || 'Pollution Report'}</Text>
+                      <Text style={styles.listSub}>
+                        {r.distance_km ? `${r.distance_km} km away` : 'Nearby'} • <Text style={{ color: meta.color, fontWeight: '600' }}>{meta.label}</Text>
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{marginLeft: 12, flex: 1}}>
-                    <Text style={styles.listTitle}>{r.category || r.description || 'Pollution Report'}</Text>
-                    <Text style={styles.listSub}>{r.distance_km ? `${r.distance_km} km away` : 'Nearby'} • {r.status}</Text>
-                  </View>
-                </View>
-              ))
+                );
+              })
             )}
             <View style={{ height: 100 }} />
           </ScrollView>
