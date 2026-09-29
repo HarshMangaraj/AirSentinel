@@ -7,18 +7,25 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "bun": "1.4.0"
+      "bun": "1.4.0",
+      "android": {
+        "image": "latest"
+      }
     },
     "preview": {
       "distribution": "internal",
       "bun": "1.4.0",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "latest"
       }
     },
     "production": {
       "bun": "1.4.0",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "image": "latest"
+      }
     }
   },
   "submit": {
